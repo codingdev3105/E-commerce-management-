@@ -116,6 +116,21 @@ function EditOrderPage() {
 
         setOrderData(prev => {
             const updated = { ...prev, [name]: val };
+
+            if (name === 'isStopDesk') {
+                // If switching to Domicile (unchecked), clear everything related to location/station
+                if (val === false) {
+                    updated.commune = '';
+                    updated.address = '';
+                    updated.stationCode = '';
+                    updated.stationName = '';
+                } else {
+                    // If switching to Stop Desk, also clear address/commune to force selection
+                    updated.commune = '';
+                    updated.address = '';
+                }
+            }
+
             if (name === 'wilaya') {
                 updated.commune = '';
                 updated.stationCode = '';
