@@ -27,6 +27,7 @@ function OrdersListPage() {
         setLoading(true);
         try {
             const data = await getOrders();
+            console.log('data : ', data);
             setOrders(data);
             setSelectedOrders([]); // Reset selection on refresh
         } catch (error) {
@@ -79,16 +80,59 @@ function OrdersListPage() {
             }
         }
     };
-
     const filteredOrders = orders.filter(order => {
-        const text = filterText.toLowerCase();
+        if (!filterText) return true;
+
+        const text = filterText.toLowerCase().trim();
+
+        // ----- 1. CONDITIONS SPÉCIALES -----
+        if (text === "domicile") {
+            return order.isStopDesk === false;
+        }
+
+        if (text === "stopdesk") {
+            return order.isStopDesk === true;
+        }
+
+        // ----- 2. NORMALISATION -----
+        const reference = (order.reference || "").toLowerCase();
+        const client = (order.client || "").toLowerCase();
+        const phone = (order.phone || "").toLowerCase();
+        const state = (order.state || "").toLowerCase();
+        const date = (order.date || "").toLowerCase();
+        const address = (order.address || "").toLowerCase();
+        const commune = (order.commune || "").toLowerCase();
+        const wilaya = (order.wilaya || "").toLowerCase();
+
+        // ----- 3. PRODUITS -----
+        let productText = "";
+
+        if (Array.isArray(order.product)) {
+            // Liste → on convertit en texte
+            productText = order.product
+                .map(p => (typeof p === "string" ? p : JSON.stringify(p)))
+                .join(" ")
+                .toLowerCase();
+        } else if (typeof order.product === "string") {
+            productText = order.product.toLowerCase();
+        } else if (typeof order.product === "object" && order.product !== null) {
+            productText = JSON.stringify(order.product).toLowerCase();
+        }
+
+        // ----- 4. FILTRAGE -----
         return (
-            (order.reference?.toLowerCase() || '').includes(text) ||
-            (order.client?.toLowerCase() || '').includes(text) ||
-            (order.phone?.toLowerCase() || '').includes(text) ||
-            (order.state?.toLowerCase() || '').includes(text)
+            reference.includes(text) ||
+            client.includes(text) ||
+            phone.includes(text) ||
+            state.includes(text) ||
+            date.includes(text) ||
+            address.includes(text) ||
+            commune.includes(text) ||
+            wilaya.includes(text) ||
+            productText.includes(text)
         );
     });
+
 
     // Pagination Logic
     const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
@@ -331,7 +375,11 @@ function OrdersListPage() {
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div className="text-sm text-slate-600">{order.wilaya}</div>
+                                        <div className="flex flex-col text-sm">
+                                            <span className="font-medium text-slate-700">{order.wilaya}</span>
+                                            {order.commune && <span className="text-slate-500 text-xs">{order.commune}</span>}
+                                            {order.address && <span className="text-slate-400 text-xs truncate max-w-[150px]" title={order.address}>{order.address}</span>}
+                                        </div>
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex flex-col gap-1 items-start">
