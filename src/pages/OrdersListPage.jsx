@@ -449,19 +449,31 @@ function OrdersListPage() {
                                             <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${getStateColor(order.state)}`}>
                                                 {order.state}
                                             </span>
-                                            <div className="font-bold text-sm text-slate-800">{order.amount} <span className="text-xs font-normal text-slate-500">DA</span></div>
                                         </div>
                                     </div>
 
-                                    {/* Client Info (Middle) */}
-                                    <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-lg">
-                                        <div className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 font-bold">
-                                            {order.client?.charAt(0)}
+                                    {/* Middle: Client Info | Product & Price */}
+                                    <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-lg">
+                                        {/* Left: Client */}
+                                        <div className="flex items-center gap-2 overflow-hidden">
+                                            <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 font-bold shrink-0 text-xs">
+                                                {order.client?.charAt(0)}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <div className="font-bold text-slate-700 text-sm truncate" title={order.client}>{order.client}</div>
+                                                <div className="text-xs text-slate-500 flex items-center gap-1">
+                                                    <Phone className="w-3 h-3" /> {order.phone}
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <div className="font-bold text-slate-700">{order.client}</div>
-                                            <div className="text-sm text-slate-500 flex items-center gap-1">
-                                                <Phone className="w-3 h-3" /> {order.phone}
+
+                                        {/* Right: Product & Price */}
+                                        <div className="flex flex-col justify-center items-end border-l border-slate-200 pl-3">
+                                            <div className="font-medium text-slate-600 text-xs text-right truncate w-full mb-0.5" title={order.product}>
+                                                {order.product || <span className="text-slate-300 italic">Sans nom</span>}
+                                            </div>
+                                            <div className="font-bold text-slate-800 text-base leading-tight">
+                                                {order.amount} <span className="text-[10px] font-normal text-slate-500">DA</span>
                                             </div>
                                         </div>
                                     </div>
