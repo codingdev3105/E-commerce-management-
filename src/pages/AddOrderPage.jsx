@@ -110,7 +110,7 @@ function AddOrderPage() {
 
     return (
         <section className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
-            <div className="bg-slate-50/50 px-8 py-5 border-b border-slate-100 flex justify-between items-center">
+            <div className="bg-slate-50/50 px-8 py-5 border-b border-slate-100 flex flex-col gap-4">
                 <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                     <Plus className="w-5 h-5 text-blue-600" /> Nouvelle Commande
                 </h2>
