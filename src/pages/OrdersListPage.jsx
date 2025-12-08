@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getOrders, deleteOrder, updateOrder, sendToNoest } from '../services/api';
-import { Search, Eye, Truck, Home, RefreshCw, Trash2, Pencil, Send, ChevronLeft, ChevronRight, ChevronFirst, ChevronLast } from 'lucide-react';
+import { Search, Eye, Truck, Home, RefreshCw, Trash2, Pencil, Send, ChevronLeft, ChevronRight, ChevronFirst, ChevronLast, Phone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUI } from '../context/UIContext';
 
@@ -26,7 +26,7 @@ function OrdersListPage() {
     const fetchOrders = async () => {
         setLoading(true);
         try {
-            const data = await getOrders(); 
+            const data = await getOrders();
             setOrders(data);
             setSelectedOrders([]); // Reset selection on refresh
         } catch (error) {
@@ -139,7 +139,7 @@ function OrdersListPage() {
         const targetState = bulkState;
 
         // 2. Enforce Transition Rules
-        let isAllowed = false; 
+        let isAllowed = false;
         if (currentState.includes('Nouvelle')) {
             // Nouvelle -> All
             isAllowed = true;
@@ -183,20 +183,20 @@ function OrdersListPage() {
 
         setIsBulkUpdating(true);
         try {
-            console.log("selectedOrders : ",selectedOrders);
+            console.log("selectedOrders : ", selectedOrders);
             const updates = selectedOrders.map(id => {
                 const originalOrder = orders.find(o => o.rowId === id);
                 if (!originalOrder) return Promise.resolve();
-                console.log("originalOrder : ",originalOrder);
+                console.log("originalOrder : ", originalOrder);
                 const payload = {
                     ...originalOrder,
                     state: bulkState,
                 };
-                console.log("payload : ",payload);
+                console.log("payload : ", payload);
                 return updateOrder(id, payload);
             });
 
-            console.log("updates : ",updates);
+            console.log("updates : ", updates);
             await Promise.all(updates);
 
             toast.success(`${selectedOrders.length} commandes mises à jour !`);
@@ -268,7 +268,8 @@ function OrdersListPage() {
                 )}
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left">
                     <thead>
                         <tr className="bg-slate-50/50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
@@ -299,7 +300,7 @@ function OrdersListPage() {
                                 <td colSpan="8" className="px-6 py-12 text-center text-slate-400">Aucune commande trouvée.</td>
                             </tr>
                         ) : (
-                            paginatedOrders.map((order, index) => (
+                            paginatedOrders.map((order) => (
                                 <tr key={order.rowId} className={`hover:bg-blue-50/30 transition-colors group ${selectedOrders.includes(order.rowId) ? 'bg-blue-50/50' : ''}`}>
                                     <td className="px-6 py-4">
                                         <input
@@ -405,6 +406,147 @@ function OrdersListPage() {
                         )}
                     </tbody>
                 </table>
+            </div>
+
+            {/* Mobile Cards View */}
+            <div className="md:hidden">
+                {loading ? (
+                    <div className="p-8 text-center text-slate-400 animate-pulse">Chargement des données...</div>
+                ) : filteredOrders.length === 0 ? (
+                    <div className="p-8 text-center text-slate-400">Aucune commande trouvée.</div>
+                ) : (
+                    <div className="grid grid-cols-1 gap-4 p-4">
+                        <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200 mb-2">
+                            <label className="flex items-center gap-2 text-sm font-bold text-slate-600">
+                                <input
+                                    type="checkbox"
+                                    checked={filteredOrders.length > 0 && filteredOrders.every(o => selectedOrders.includes(o.rowId))}
+                                    onChange={toggleSelectAll}
+                                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                Tout sélectionner
+                            </label>
+                        </div>
+
+                        {paginatedOrders.map((order) => (
+                            <div key={order.rowId} className={`bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden ${selectedOrders.includes(order.rowId) ? 'ring-2 ring-blue-500 border-transparent' : ''}`}>
+                                <div className="p-4 space-y-4">
+                                    {/* Header: Checkbox + Ref + Status */}
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex items-start gap-3">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedOrders.includes(order.rowId)}
+                                                onChange={() => toggleSelectRow(order.rowId)}
+                                                className="mt-1 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                            />
+                                            <div>
+                                                <div className="font-bold text-slate-800">{order.reference}</div>
+                                                <div className="text-xs text-slate-400 font-mono">{order.date}</div>
+                                            </div>
+                                        </div>
+                                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${getStateColor(order.state)}`}>
+                                            {order.state}
+                                        </span>
+                                    </div>
+
+                                    {/* Client Info */}
+                                    <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-lg">
+                                        <div className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 font-bold">
+                                            {order.client?.charAt(0)}
+                                        </div>
+                                        <div>
+                                            <div className="font-bold text-slate-700">{order.client}</div>
+                                            <div className="text-sm text-slate-500 flex items-center gap-1">
+                                                <Phone className="w-3 h-3" /> {order.phone}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Location & Type */}
+                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                        <div>
+                                            <div className="text-xs font-bold text-slate-400 uppercase">Localisation</div>
+                                            <div className="font-medium text-slate-700">{order.wilaya}</div>
+                                            {(order.commune || order.address) && (
+                                                <div className="text-xs text-slate-500 truncate max-w-[120px]" title={order.isStopDesk ? order.address : order.commune}>
+                                                    {order.isStopDesk ? order.address : order.commune}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <div className="text-xs font-bold text-slate-400 uppercase">Livraison</div>
+                                            <div className="flex flex-col gap-1 items-start mt-0.5">
+                                                {order.isStopDesk ? (
+                                                    <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-700">
+                                                        <Truck className="w-3 h-3" /> Stop Desk
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-600">
+                                                        <Home className="w-3 h-3" /> Domicile
+                                                    </span>
+                                                )}
+                                                {order.isExchange && (
+                                                    <span className="inline-flex items-center gap-1 text-xs font-medium text-orange-700">
+                                                        <RefreshCw className="w-3 h-3" /> Échange
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Footer: Amount & Actions */}
+                                    <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                                        <div className="font-bold text-lg text-slate-800">{order.amount} <span className="text-xs font-normal text-slate-500">DA</span></div>
+
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => navigate(`/commandes/details/${order.rowId}`)}
+                                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-slate-100"
+                                                title="Voir les détails"
+                                            >
+                                                <Eye className="w-4 h-4" />
+                                            </button>
+
+                                            <button
+                                                onClick={() => navigate(`/modifier/${order.rowId}`)}
+                                                disabled={order.state.includes('System')}
+                                                className={`p-2 rounded-lg transition-colors border border-slate-100 ${order.state.includes('System')
+                                                    ? 'text-slate-200 cursor-not-allowed'
+                                                    : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50'
+                                                    }`}
+                                            >
+                                                <Pencil className="w-4 h-4" />
+                                            </button>
+
+                                            <button
+                                                onClick={() => handleSendToNoest(order.rowId, order.reference)}
+                                                disabled={order.state !== 'Atelier'}
+                                                className={`p-2 rounded-lg transition-colors border border-slate-100 ${order.state === 'Atelier'
+                                                    ? 'text-slate-400 hover:text-green-600 hover:bg-green-50'
+                                                    : 'text-slate-200 cursor-not-allowed'
+                                                    }`}
+                                            >
+                                                <Send className="w-4 h-4" />
+                                            </button>
+
+                                            <button
+                                                onClick={() => handleDelete(order.rowId, order.reference)}
+                                                disabled={order.state.includes('System')}
+                                                className={`p-2 rounded-lg transition-colors border border-slate-100 ${order.state.includes('System')
+                                                    ? 'text-slate-200 cursor-not-allowed'
+                                                    : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
+                                                    }`}
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* Pagination Controls */}
