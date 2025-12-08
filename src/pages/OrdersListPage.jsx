@@ -183,32 +183,37 @@ function OrdersListPage() {
         const targetState = bulkState;
 
         // 2. Enforce Transition Rules
+        // 2. Enforce Transition Rules
         let isAllowed = false;
-        if (currentState.includes('Nouvelle')) {
-            // Nouvelle -> All
-            isAllowed = true;
-        } else if (currentState.includes('Atelier')) {
-            // Atelier -> All
-            isAllowed = true;
-        } else if (currentState.includes('System')) {
-            // System -> Only 'Annuler'
+
+        // Common transitions (Nouvelle/Atelier can usually swap or go to Annuler)
+        const isStandardState = (s) => s.includes('Nouvelle') || s.includes('Atelier');
+        const isSystemState = (s) => s.includes('System') || s.includes('Envoyer');
+        const isCancelledState = (s) => s.includes('Annuler');
+
+        if (isSystemState(currentState)) {
+            // System -> Only 'Annuler' allowed
             if (targetState === 'Annuler') {
                 isAllowed = true;
             } else {
-                toast.error("Action refusée : Les commandes 'System/Envoyer' ne peuvent être changées qu'en 'Annuler'.");
+                toast.error("Action refusée : Les commandes 'System' ne peuvent être changées qu'en 'Annuler'.");
                 return;
             }
-        } else if (currentState.includes('Annuler')) {
-            // Annuler -> Nouvelle
+        } else if (isCancelledState(currentState)) {
+            // Annuler -> Only 'Nouvelle' allowed (Restoration)
             if (targetState === 'Nouvelle') {
                 isAllowed = true;
             } else {
                 toast.error("Action refusée : Les commandes annulées ne peuvent être rétablies qu'en 'Nouvelle'.");
                 return;
             }
-        } else {
-            // Fallback
+        } else if (isStandardState(currentState)) {
+            // Nouvelle <-> Atelier (and both can go to Annuler)
+            // Since 'System' is removed from options, we don't need to check target == System
             isAllowed = true;
+        } else {
+            // Fallback for unknown states
+            isAllowed = false;
         }
 
         if (!isAllowed) {
@@ -302,7 +307,6 @@ function OrdersListPage() {
                             <option value="">Modifier l'état...</option>
                             <option value="Nouvelle">Nouvelle</option>
                             <option value="Atelier">Atelier</option>
-                            <option value="System">Envoyer (Système)</option>
                             <option value="Annuler">Annuler</option>
                         </select>
 
