@@ -1,7 +1,13 @@
 import axios from 'axios';
 
+
+// backend URL
+const backendUrl_local = 'http://localhost:3001';
+const backendUrl = 'https://e-commerce-managment-backend.vercel.app';
+
+// API configuration
 const api = axios.create({
-    baseURL: 'http://localhost:3001/api',
+    baseURL: `${backendUrl}/api`,
 });
 
 // Add a request interceptor to inject the token
