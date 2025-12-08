@@ -131,6 +131,12 @@ function EditOrderPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (orderData.isStopDesk && !orderData.stationCode) {
+            toast.error("Veuillez sélectionner un bureau Stop Desk");
+            return;
+        }
+
         setSubmitting(true);
         try {
             await updateOrder(id, orderData);
