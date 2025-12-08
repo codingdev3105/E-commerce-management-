@@ -128,7 +128,8 @@ function NoestTrackingPage() {
                 </div>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left">
                     <thead>
                         <tr className="bg-slate-50/50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
@@ -214,6 +215,86 @@ function NoestTrackingPage() {
                         )}
                     </tbody>
                 </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden">
+                {loading ? (
+                    <div className="p-8 flex flex-col items-center justify-center gap-3 text-slate-400">
+                        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                        <span className="text-sm">Chargement...</span>
+                    </div>
+                ) : filteredOrders.length === 0 ? (
+                    <div className="p-8 text-center text-slate-400">Aucune commande 'System' trouvée.</div>
+                ) : (
+                    <div className="grid grid-cols-1 gap-4 p-4">
+                        {filteredOrders.map((o, idx) => (
+                            <div key={idx} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                                <div className="p-4 space-y-4">
+                                    {/* Header: Tracking + Ref + Date | Status */}
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex flex-col items-start gap-1">
+                                            {o.tracking && (
+                                                <span className="font-mono text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded tracking-wide">
+                                                    {o.tracking}
+                                                </span>
+                                            )}
+                                            <div className="font-bold text-slate-800">{o.reference || '-'}</div>
+                                            <div className="text-xs text-slate-400 font-mono flex items-center gap-1">
+                                                <Calendar className="w-3 h-3" />
+                                                {o.created_at ? new Date(o.created_at).toLocaleDateString('fr-FR') : '-'}
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col items-end gap-1">
+                                            <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold uppercase shadow-sm ${getStatusColor(o)}`}>
+                                                {o.status || 'En attente'}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Middle: Client | Destination & Price (Stacked) */}
+                                    <div className="bg-slate-50 p-3 rounded-lg space-y-3">
+                                        {/* Row 1: Client */}
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 font-bold shrink-0">
+                                                <User className="w-4 h-4 text-slate-400" />
+                                            </div>
+                                            <div>
+                                                <div className="font-bold text-slate-700">{o.client || '-'}</div>
+                                                <div className="text-sm text-slate-500 flex items-center gap-1">
+                                                    <Phone className="w-3 h-3" /> {o.phone || '-'}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="h-px bg-slate-200 w-full"></div>
+
+                                        {/* Row 2: Destination & Price */}
+                                        <div className="flex justify-between items-center">
+                                            <div className="flex items-center gap-2 text-sm text-slate-600 truncate mr-2 flex-1" title={o.commune ? `${o.wilaya} - ${o.commune}` : o.wilaya}>
+                                                <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
+                                                <span className="truncate">{o.wilaya || '-'}</span>
+                                            </div>
+                                            <div className="font-bold text-slate-800 text-lg whitespace-nowrap">
+                                                {o.montant} <span className="text-xs font-normal text-slate-500">DA</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Footer: Actions */}
+                                    <div className="flex items-center justify-end pt-4 border-t border-slate-100">
+                                        <button
+                                            onClick={() => setSelectedOrder(o)}
+                                            className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors font-medium text-sm w-full justify-center"
+                                        >
+                                            <History className="w-4 h-4" /> Historique complet
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {selectedOrder && (
@@ -309,8 +390,8 @@ function NoestTrackingPage() {
                                                     )}
                                                     {act['badge-class'] && (
                                                         <span className={`px-1.5 py-0.5 rounded ${act['badge-class'].includes('success') ? 'bg-green-50 text-green-600' :
-                                                                act['badge-class'].includes('danger') ? 'bg-red-50 text-red-600' :
-                                                                    'bg-slate-100 text-slate-500'
+                                                            act['badge-class'].includes('danger') ? 'bg-red-50 text-red-600' :
+                                                                'bg-slate-100 text-slate-500'
                                                             }`}>
                                                             {act.event_key}
                                                         </span>

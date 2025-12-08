@@ -82,7 +82,7 @@ function AddOrderPage() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setSubmitting(true);
-        try {
+        try { 
             await createOrder(newOrder);
             toast.success('Commande ajoutée avec succès !');
             setNewOrder({

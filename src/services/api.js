@@ -40,7 +40,7 @@ export const login = async (code) => {
 };
 
 export const getOrders = async () => {
-    const response = await api.get('/commandes');
+    const response = await api.get('/commandes'); 
     return response.data;
 };
 
