@@ -56,19 +56,30 @@ function StatisticsPage() {
         const statusData = Object.entries(statusMap).map(([name, value]) => ({ name, value }));
 
         // Updated Colors
-        // Updated Colors
         const STATUS_COLORS = {
-            'Nouvelle': '#3b82f6', // Blue
-            'Atelier': '#a855f7',  // Purple (Mauve)
+            'nouvelle': '#3b82f6', // Blue
+            'atelier': '#a855f7',  // Purple
             'envoyer': '#f97316',  // Orange
-            'Annuler': '#ef4444',  // Red
-            'Retour': '#ef4444',   // Red
-            'Livrée': '#10b981',   // Emerald
-            'Inconnu': '#cbd5e1'
+            'system': '#f97316',   // Orange
+            'annuler': '#ef4444',  // Red
+            'retour': '#ef4444',   // Red
+            'livrée': '#10b981',   // Emerald (Green)
+            'livree': '#10b981',
+            'default': '#cbd5e1'   // Gray
         };
-        // Palette for Pie Chart (match order of logical importance or frequency)
-        const COLORS = ['#3b82f6', '#f97316', '#a855f7', '#ef4444', '#10b981', '#cbd5e1'];
 
+        const getColor = (status) => {
+            const key = (status || '').toLowerCase();
+            // Partial match check
+            if (key.includes('nouvelle')) return STATUS_COLORS['nouvelle'];
+            if (key.includes('atelier')) return STATUS_COLORS['atelier'];
+            if (key.includes('envoyer') || key.includes('system')) return STATUS_COLORS['envoyer'];
+            if (key.includes('annuler')) return STATUS_COLORS['annuler'];
+            if (key.includes('retour')) return STATUS_COLORS['retour'];
+            if (key.includes('livr')) return STATUS_COLORS['livrée'];
+
+            return STATUS_COLORS['default'];
+        };
 
         // 3. Wilaya Distribution Data
         const wilayaMap = orders.reduce((acc, o) => {
@@ -91,7 +102,7 @@ function StatisticsPage() {
             dailyData,
             statusData,
             wilayaData,
-            COLORS
+            getColor // Expose helper
         };
     }, [orders]);
 
@@ -207,7 +218,7 @@ function StatisticsPage() {
                                     dataKey="value"
                                 >
                                     {stats.statusData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={stats.COLORS[index % stats.COLORS.length]} />
+                                        <Cell key={`cell-${index}`} fill={stats.getColor(entry.name)} />
                                     ))}
                                 </Pie>
                                 <RechartsTooltip />

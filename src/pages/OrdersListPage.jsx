@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { getOrders, deleteOrder, updateOrder, sendToNoest } from '../services/api';
-import { Search, Eye, Truck, Home, RefreshCw, Trash2, Pencil, Send, ChevronLeft, ChevronRight, ChevronFirst, ChevronLast, Phone } from 'lucide-react';
+import { Search, Eye, Truck, Home, RefreshCw, Trash2, Pencil, Send, ChevronLeft, ChevronRight, ChevronFirst, ChevronLast, Phone, FileDown, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUI } from '../context/UIContext';
+import { exportToPDF } from '../services/exportService';
 
 function OrdersListPage() {
     const [orders, setOrders] = useState([]);
@@ -27,7 +28,6 @@ function OrdersListPage() {
         setLoading(true);
         try {
             const data = await getOrders();
-            console.log('data : ', data);
             setOrders(data);
             setSelectedOrders([]); // Reset selection on refresh
         } catch (error) {
@@ -60,6 +60,50 @@ function OrdersListPage() {
         }
     };
 
+    const handleExportNewOrders = async () => {
+        const newOrders = orders.filter(o => (o.state || '').includes('Nouvelle'));
+
+        if (newOrders.length === 0) {
+            toast.error("Aucune nouvelle commande à exporter.");
+            return;
+        }
+
+        const role = localStorage.getItem('role') || 'Utilisateur';
+        const timestamp = new Date().toISOString().slice(0, 10);
+        const filename = `commandes_nouvelles_${timestamp}.pdf`;
+
+        // Export PDF
+        await exportToPDF(newOrders, filename, role);
+        toast.success(`Export PDF téléchargé ! (${newOrders.length} nouvelles commandes)`);
+
+        // Ask user if they want to update status to 'Atelier'
+        const confirmed = await confirm({
+            title: "Mise à jour des états",
+            message: `${newOrders.length} nouvelles commandes ont été exportées. Voulez-vous changer leur état vers "Atelier" ?`,
+            type: "confirm",
+            confirmText: "Oui, passer à Atelier",
+            cancelText: "Non, garder Nouvelle"
+        });
+
+        if (confirmed) {
+            setIsBulkUpdating(true);
+            try {
+                const updates = newOrders.map(o => {
+                    const payload = { ...o, state: 'Atelier' };
+                    return updateOrder(o.rowId, payload);
+                });
+                await Promise.all(updates);
+                toast.success(`${newOrders.length} commandes passées en 'Atelier' !`);
+                fetchOrders();
+            } catch (error) {
+                console.error("State update failed", error);
+                toast.error("Erreur lors de la mise à jour des états.");
+            } finally {
+                setIsBulkUpdating(false);
+            }
+        }
+    };
+
     const handleSendToNoest = async (rowId, ref) => {
         const confirmed = await confirm({
             title: "Envoyer vers Noest ?",
@@ -80,6 +124,7 @@ function OrdersListPage() {
             }
         }
     };
+
     const filteredOrders = orders.filter(order => {
         if (!filterText) return true;
 
@@ -133,7 +178,6 @@ function OrdersListPage() {
         );
     });
 
-
     // Pagination Logic
     const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -149,10 +193,8 @@ function OrdersListPage() {
         const allFilteredSelected = filteredOrders.length > 0 && filteredOrders.every(o => selectedOrders.includes(o.rowId));
 
         if (allFilteredSelected) {
-            // Unselect only the visible/filtered ones
             setSelectedOrders(prev => prev.filter(id => !filteredOrders.find(o => o.rowId === id)));
         } else {
-            // Select all visible ones (merge with existing)
             const newIds = filteredOrders.map(o => o.rowId);
             setSelectedOrders(prev => [...new Set([...prev, ...newIds])]);
         }
@@ -168,7 +210,6 @@ function OrdersListPage() {
     const handleBulkUpdate = async () => {
         if (!bulkState) return;
 
-        // 1. Verify all selected orders have the same current state
         const selectedOrderObjects = orders.filter(o => selectedOrders.includes(o.rowId));
         if (selectedOrderObjects.length === 0) return;
 
@@ -182,17 +223,12 @@ function OrdersListPage() {
         const currentState = distinctStates[0];
         const targetState = bulkState;
 
-        // 2. Enforce Transition Rules
-        // 2. Enforce Transition Rules
         let isAllowed = false;
-
-        // Common transitions (Nouvelle/Atelier can usually swap or go to Annuler)
         const isStandardState = (s) => s.includes('Nouvelle') || s.includes('Atelier');
         const isSystemState = (s) => s.includes('System') || s.includes('Envoyer');
         const isCancelledState = (s) => s.includes('Annuler');
 
         if (isSystemState(currentState)) {
-            // System -> Only 'Annuler' allowed
             if (targetState === 'Annuler') {
                 isAllowed = true;
             } else {
@@ -200,7 +236,6 @@ function OrdersListPage() {
                 return;
             }
         } else if (isCancelledState(currentState)) {
-            // Annuler -> Only 'Nouvelle' allowed (Restoration)
             if (targetState === 'Nouvelle') {
                 isAllowed = true;
             } else {
@@ -208,11 +243,8 @@ function OrdersListPage() {
                 return;
             }
         } else if (isStandardState(currentState)) {
-            // Nouvelle <-> Atelier (and both can go to Annuler)
-            // Since 'System' is removed from options, we don't need to check target == System
             isAllowed = true;
         } else {
-            // Fallback for unknown states
             isAllowed = false;
         }
 
@@ -232,20 +264,16 @@ function OrdersListPage() {
 
         setIsBulkUpdating(true);
         try {
-            console.log("selectedOrders : ", selectedOrders);
             const updates = selectedOrders.map(id => {
                 const originalOrder = orders.find(o => o.rowId === id);
                 if (!originalOrder) return Promise.resolve();
-                console.log("originalOrder : ", originalOrder);
                 const payload = {
                     ...originalOrder,
                     state: bulkState,
                 };
-                console.log("payload : ", payload);
                 return updateOrder(id, payload);
             });
 
-            console.log("updates : ", updates);
             await Promise.all(updates);
 
             toast.success(`${selectedOrders.length} commandes mises à jour !`);
@@ -265,7 +293,7 @@ function OrdersListPage() {
         const s = (state || '');
         if (s.includes('Nouvelle')) return 'bg-blue-100 text-blue-700 border border-blue-200';
         if (s.includes('Annuler')) return 'bg-red-100 text-red-700 border border-red-200';
-        if (s.includes('System')) return 'bg-orange-100 text-orange-700 border border-orange-200';
+        if (s.includes('System') || s.includes('Envoyer')) return 'bg-orange-100 text-orange-700 border border-orange-200';
         if (s.includes('Atelier')) return 'bg-purple-100 text-purple-700 border border-purple-200';
         return 'bg-gray-100 text-gray-700 border border-gray-200';
     };
@@ -288,9 +316,20 @@ function OrdersListPage() {
                             className="pl-10 pr-4 py-2 w-full md:w-72 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all"
                         />
                     </div>
+
+                    {/* Global Export Buttons */}
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleExportNewOrders}
+                            className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 text-red-700 rounded-lg hover:bg-red-100 transition-colors shadow-sm text-sm font-bold"
+                            title="Exporter les nouvelles commandes en PDF"
+                        >
+                            <FileText className="w-4 h-4" />
+                            <span className="hidden md:inline">Exporter Nouvelles (PDF)</span>
+                        </button>
+                    </div>
                 </div>
 
-                {/* Bulk Actions Bar */}
                 {/* Bulk Actions Bar */}
                 {selectedOrders.length > 0 && (
                     <div className="flex flex-col md:flex-row md:items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-lg animate-in fade-in slide-in-from-top-2">
@@ -317,6 +356,25 @@ function OrdersListPage() {
                         >
                             {isBulkUpdating ? '...' : 'Appliquer'}
                         </button>
+
+                        <div className="h-6 w-px bg-blue-200 mx-1 hidden md:block"></div>
+
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={() => handleExport('pdf', 'selected')}
+                                className="p-2 bg-white text-red-500 rounded border border-blue-100 hover:bg-red-50 transition-colors"
+                                title="Exporter la sélection en PDF"
+                            >
+                                <FileText className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={() => handleExport('csv', 'selected')}
+                                className="p-2 bg-white text-green-600 rounded border border-blue-100 hover:bg-green-50 transition-colors"
+                                title="Exporter la sélection en CSV"
+                            >
+                                <FileSpreadsheet className="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
