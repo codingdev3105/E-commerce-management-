@@ -60,7 +60,7 @@ function EditOrderPage() {
                     phone: order.phone,
                     address: order.address,
                     wilaya: order.wilaya,
-                    commune: order.isStopDesk ? '' : (order.address || ''),
+                    commune: order.isStopDesk ? '' : (order.commune || ''),
                     amount: order.amount,
                     product: order.product || '',
                     note: order.note || '',
