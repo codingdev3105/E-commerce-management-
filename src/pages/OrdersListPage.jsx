@@ -431,7 +431,7 @@ function OrdersListPage() {
                         {paginatedOrders.map((order) => (
                             <div key={order.rowId} className={`bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden ${selectedOrders.includes(order.rowId) ? 'ring-2 ring-blue-500 border-transparent' : ''}`}>
                                 <div className="p-4 space-y-4">
-                                    {/* Header: Checkbox + Ref + Status */}
+                                    {/* Header: Checkbox + Ref + Date + Status + Amount */}
                                     <div className="flex items-start justify-between">
                                         <div className="flex items-start gap-3">
                                             <input
@@ -445,12 +445,15 @@ function OrdersListPage() {
                                                 <div className="text-xs text-slate-400 font-mono">{order.date}</div>
                                             </div>
                                         </div>
-                                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${getStateColor(order.state)}`}>
-                                            {order.state}
-                                        </span>
+                                        <div className="flex flex-col items-end gap-1">
+                                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${getStateColor(order.state)}`}>
+                                                {order.state}
+                                            </span>
+                                            <div className="font-bold text-sm text-slate-800">{order.amount} <span className="text-xs font-normal text-slate-500">DA</span></div>
+                                        </div>
                                     </div>
 
-                                    {/* Client Info */}
+                                    {/* Client Info (Middle) */}
                                     <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-lg">
                                         <div className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 font-bold">
                                             {order.client?.charAt(0)}
@@ -463,41 +466,24 @@ function OrdersListPage() {
                                         </div>
                                     </div>
 
-                                    {/* Location & Type */}
-                                    <div className="grid grid-cols-2 gap-4 text-sm">
-                                        <div>
-                                            <div className="text-xs font-bold text-slate-400 uppercase">Localisation</div>
-                                            <div className="font-medium text-slate-700">{order.wilaya}</div>
-                                            {(order.commune || order.address) && (
-                                                <div className="text-xs text-slate-500 truncate max-w-[120px]" title={order.isStopDesk ? order.address : order.commune}>
-                                                    {order.isStopDesk ? order.address : order.commune}
-                                                </div>
+                                    {/* Footer: Delivery Type & Actions */}
+                                    <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                                        <div className="flex flex-col gap-1 items-start">
+                                            {order.isStopDesk ? (
+                                                <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-700">
+                                                    <Truck className="w-3 h-3" /> Stop Desk
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-600">
+                                                    <Home className="w-3 h-3" /> Domicile
+                                                </span>
+                                            )}
+                                            {order.isExchange && (
+                                                <span className="inline-flex items-center gap-1 text-xs font-medium text-orange-700">
+                                                    <RefreshCw className="w-3 h-3" /> Échange
+                                                </span>
                                             )}
                                         </div>
-                                        <div>
-                                            <div className="text-xs font-bold text-slate-400 uppercase">Livraison</div>
-                                            <div className="flex flex-col gap-1 items-start mt-0.5">
-                                                {order.isStopDesk ? (
-                                                    <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-700">
-                                                        <Truck className="w-3 h-3" /> Stop Desk
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-600">
-                                                        <Home className="w-3 h-3" /> Domicile
-                                                    </span>
-                                                )}
-                                                {order.isExchange && (
-                                                    <span className="inline-flex items-center gap-1 text-xs font-medium text-orange-700">
-                                                        <RefreshCw className="w-3 h-3" /> Échange
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Footer: Amount & Actions */}
-                                    <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-                                        <div className="font-bold text-lg text-slate-800">{order.amount} <span className="text-xs font-normal text-slate-500">DA</span></div>
 
                                         <div className="flex items-center gap-2">
                                             <button
