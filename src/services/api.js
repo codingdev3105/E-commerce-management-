@@ -1,13 +1,12 @@
 import axios from 'axios';
 
 
-// backend URL
-const backendUrl_local = 'http://localhost:3001';
-const backendUrl = 'https://e-commerce-managment-backend.vercel.app';
-
 // API configuration
+// Use environment variable if available, otherwise fallback to localhost for dev
+const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
 const api = axios.create({
-    baseURL: `${backendUrl}/api`,
+    baseURL: baseURL,
 });
 
 // Add a request interceptor to inject the token
