@@ -242,14 +242,18 @@ function OrdersListPage() {
                 </div>
 
                 {/* Bulk Actions Bar */}
+                {/* Bulk Actions Bar */}
                 {selectedOrders.length > 0 && (
-                    <div className="flex items-center gap-4 p-3 bg-blue-50 border border-blue-100 rounded-lg animate-in fade-in slide-in-from-top-2">
-                        <span className="text-sm font-bold text-blue-800 whitespace-nowrap">{selectedOrders.length} sélectionnée(s)</span>
-                        <div className="h-4 w-px bg-blue-200"></div>
+                    <div className="flex flex-col md:flex-row md:items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-lg animate-in fade-in slide-in-from-top-2">
+                        <div className="flex items-center justify-between md:justify-start gap-4">
+                            <span className="text-sm font-bold text-blue-800 whitespace-nowrap">{selectedOrders.length} sélectionnée(s)</span>
+                            <div className="hidden md:block h-4 w-px bg-blue-200"></div>
+                        </div>
+
                         <select
                             value={bulkState}
                             onChange={(e) => setBulkState(e.target.value)}
-                            className="text-sm border-slate-200 rounded-md focus:border-blue-500 focus:ring-blue-500"
+                            className="w-full md:w-auto text-sm border-slate-200 rounded-md focus:border-blue-500 focus:ring-blue-500"
                         >
                             <option value="">Modifier l'état...</option>
                             <option value="Nouvelle">Nouvelle</option>
@@ -257,10 +261,11 @@ function OrdersListPage() {
                             <option value="System">Envoyer (Système)</option>
                             <option value="Annuler">Annuler</option>
                         </select>
+
                         <button
                             onClick={handleBulkUpdate}
                             disabled={!bulkState || isBulkUpdating}
-                            className="px-4 py-1.5 bg-blue-600 text-white text-sm font-bold rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                            className="w-full md:w-auto px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
                         >
                             {isBulkUpdating ? '...' : 'Appliquer'}
                         </button>
