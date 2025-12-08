@@ -106,12 +106,10 @@ function EditOrderPage() {
         const val = type === 'checkbox' ? checked : value;
 
         // Phone validation: exactly 10 digits starting with 0
+        // Phone validation: only numbers, max 10 digits
         if (name === 'phone' && canEditFields) {
-            const phoneRegex = /^0\d{9}$/;
-            if (val && !phoneRegex.test(val)) {
-                toast.error('Le numéro de téléphone doit contenir exactement 10 chiffres et commencer par 0');
-                return;
-            }
+            if (!/^\d*$/.test(val)) return;
+            if (val.length > 10) return;
         }
 
         setOrderData(prev => {

@@ -104,6 +104,16 @@ function OrdersListPage() {
         }
     };
 
+    const handleExportSelection = () => {
+        const selected = orders.filter(o => selectedOrders.includes(o.rowId));
+        if (selected.length === 0) return;
+
+        const role = localStorage.getItem('role') || 'Utilisateur';
+        const timestamp = new Date().toISOString().slice(0, 10);
+        exportToPDF(selected, `selection_commandes_${timestamp}.pdf`, role);
+        toast.success("Sélection exportée en PDF !");
+    };
+
     const handleSendToNoest = async (rowId, ref) => {
         const confirmed = await confirm({
             title: "Envoyer vers Noest ?",
@@ -189,7 +199,9 @@ function OrdersListPage() {
     }, [filterText, itemsPerPage]);
 
     // Selection Logic
-    const toggleSelectAll = () => {
+    const toggleSelectAll = (e) => {
+        if (e && e.stopPropagation) e.stopPropagation();
+
         const allFilteredSelected = filteredOrders.length > 0 && filteredOrders.every(o => selectedOrders.includes(o.rowId));
 
         if (allFilteredSelected) {
@@ -200,7 +212,9 @@ function OrdersListPage() {
         }
     };
 
-    const toggleSelectRow = (id) => {
+    const toggleSelectRow = (id, e) => {
+        if (e && e.stopPropagation) e.stopPropagation();
+
         setSelectedOrders(prev =>
             prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
         );
@@ -361,18 +375,11 @@ function OrdersListPage() {
 
                         <div className="flex items-center gap-1">
                             <button
-                                onClick={() => handleExport('pdf', 'selected')}
+                                onClick={handleExportSelection}
                                 className="p-2 bg-white text-red-500 rounded border border-blue-100 hover:bg-red-50 transition-colors"
                                 title="Exporter la sélection en PDF"
                             >
                                 <FileText className="w-4 h-4" />
-                            </button>
-                            <button
-                                onClick={() => handleExport('csv', 'selected')}
-                                className="p-2 bg-white text-green-600 rounded border border-blue-100 hover:bg-green-50 transition-colors"
-                                title="Exporter la sélection en CSV"
-                            >
-                                <FileSpreadsheet className="w-4 h-4" />
                             </button>
                         </div>
                     </div>
@@ -417,7 +424,7 @@ function OrdersListPage() {
                                         <input
                                             type="checkbox"
                                             checked={selectedOrders.includes(order.rowId)}
-                                            onChange={() => toggleSelectRow(order.rowId)}
+                                            onChange={(e) => toggleSelectRow(order.rowId, e)}
                                             className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                                         />
                                     </td>
@@ -537,6 +544,7 @@ function OrdersListPage() {
                                     type="checkbox"
                                     checked={filteredOrders.length > 0 && filteredOrders.every(o => selectedOrders.includes(o.rowId))}
                                     onChange={toggleSelectAll}
+                                    onClick={(e) => e.stopPropagation()}
                                     className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                                 />
                                 Tout sélectionner
@@ -552,7 +560,8 @@ function OrdersListPage() {
                                             <input
                                                 type="checkbox"
                                                 checked={selectedOrders.includes(order.rowId)}
-                                                onChange={() => toggleSelectRow(order.rowId)}
+                                                onChange={(e) => toggleSelectRow(order.rowId, e)}
+                                                onClick={(e) => e.stopPropagation()}
                                                 className="mt-1 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                                             />
                                             <div>
@@ -722,7 +731,7 @@ function OrdersListPage() {
                     </div>
                 </div>
             </div>
-        </section>
+        </section >
     );
 }
 

@@ -56,12 +56,10 @@ function AddOrderPage() {
         const val = type === 'checkbox' ? checked : value;
 
         // Phone validation: exactly 10 digits starting with 0
+        // Phone validation: only numbers, max 10 digits
         if (name === 'phone') {
-            const phoneRegex = /^0\d{9}$/;
-            if (!phoneRegex.test(val)) {
-                toast.error('Le numéro de téléphone doit contenir exactement 10 chiffres et commencer par 0');
-                return; // ignore invalid input
-            }
+            if (!/^\d*$/.test(val)) return;
+            if (val.length > 10) return;
         }
 
         setNewOrder(prev => {
@@ -82,7 +80,7 @@ function AddOrderPage() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setSubmitting(true);
-        try { 
+        try {
             await createOrder(newOrder);
             toast.success('Commande ajoutée avec succès !');
             setNewOrder({
