@@ -15,10 +15,10 @@ function OrderDetailsPage() {
                 // Fetch all and find (Temporary solution until backend supports GET /:id)
                 const orders = await getOrders();
                 // Find by Reference
-                const found = orders.find(o => o.rowId === Number(id)); 
-                console.log('id : ',typeof(id));
-                console.log('orders : ',orders); 
-                console.log('found : ',found);
+                const found = orders.find(o => o.rowId === Number(id));
+                console.log('id : ', typeof (id));
+                console.log('orders : ', orders);
+                console.log('found : ', found);
                 setOrder(found);
             } catch (err) {
                 console.error("Failed to fetch order", err);
@@ -43,18 +43,22 @@ function OrderDetailsPage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center gap-4">
-                <button onClick={() => navigate('/commandes')} className="p-2 hover:bg-white rounded-lg transition-colors text-slate-400 hover:text-slate-700">
-                    <ArrowLeft className="w-5 h-5" />
-                </button>
-                <div>
-                    <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
-                        Commande <span className="font-mono text-blue-600 bg-blue-50 px-2 py-1 rounded-lg text-xl">{order.reference}</span>
-                    </h2>
-                    <p className="text-slate-500 text-sm mt-1">Crée le {order.date}</p>
+            {/* Header */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-4">
+                <div className="flex items-start gap-4">
+                    <button onClick={() => navigate('/commandes')} className="p-2 hover:bg-slate-50 rounded-lg transition-colors text-slate-400 hover:text-slate-700 -ml-2">
+                        <ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <div>
+                        <h2 className="text-2xl font-bold text-slate-800 flex flex-wrap items-center gap-3">
+                            Commande <span className="font-mono text-blue-600 bg-blue-50 px-2 py-1 rounded-lg text-xl">{order.reference}</span>
+                        </h2>
+                        <p className="text-slate-500 text-sm mt-1">Crée le {order.date}</p>
+                    </div>
                 </div>
-                <div className="ml-auto">
-                    <span className={`inline-flex items-center px-4 py-1.5 rounded-full text-sm font-bold shadow-sm
+
+                <div className="pt-2 border-t border-slate-50">
+                    <span className={`inline-block text-center w-full md:w-auto px-4 py-1.5 rounded-full text-sm font-bold shadow-sm
                       ${(order.state || '').toLowerCase().includes('nouvelle') ? 'bg-blue-100 text-blue-700 border border-blue-200' :
                             (order.state || '').toLowerCase().includes('atelier') ? 'bg-purple-100 text-purple-700 border border-purple-200' :
                                 (order.state || '').toLowerCase().includes('system') ? 'bg-orange-100 text-orange-700 border border-orange-200' :
