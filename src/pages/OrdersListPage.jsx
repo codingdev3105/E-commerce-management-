@@ -4,11 +4,13 @@ import { Search, Eye, Truck, Home, RefreshCw, Trash2, Pencil, Send, ChevronLeft,
 import { useNavigate } from 'react-router-dom';
 import { useUI } from '../context/UIContext';
 import { exportToPDF } from '../services/exportService';
+import { getNoestWilayas, getNoestCommunes, getNoestDesks } from '../services/api';
 
 function OrdersListPage() {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filterText, setFilterText] = useState('');
+    const [statusFilter, setStatusFilter] = useState('Tous');
     const navigate = useNavigate();
     const { toast, confirm } = useUI();
 
@@ -27,7 +29,7 @@ function OrdersListPage() {
     const fetchOrders = async () => {
         setLoading(true);
         try {
-            const data = await getOrders();
+            const data = await getOrders(); 
             setOrders(data);
             setSelectedOrders([]); // Reset selection on refresh
         } catch (error) {
@@ -125,6 +127,7 @@ function OrdersListPage() {
 
         if (confirmed) {
             try {
+                console.log(rowId);
                 const result = await sendToNoest(rowId);
                 toast.success(`Commande envoyée ! Tracking: ${result.tracking}`);
                 fetchOrders(); // Refresh to show updated state
@@ -136,6 +139,10 @@ function OrdersListPage() {
     };
 
     const filteredOrders = orders.filter(order => {
+        if (statusFilter !== 'Tous' && (order.state || 'Inconnu') !== statusFilter) {
+            return false;
+        }
+
         if (!filterText) return true;
 
         const text = filterText.toLowerCase().trim();
@@ -196,7 +203,17 @@ function OrdersListPage() {
     // Reset to page 1 if filter changes
     useEffect(() => {
         setCurrentPage(1);
-    }, [filterText, itemsPerPage]);
+        setCurrentPage(1);
+    }, [filterText, itemsPerPage, statusFilter]);
+
+    // Status counts
+    const statusCounts = orders.reduce((acc, order) => {
+        const s = order.state || 'Inconnu';
+        acc[s] = (acc[s] || 0) + 1;
+        return acc;
+    }, { 'Tous': orders.length });
+
+    const availableStatuses = ['Tous', ...Object.keys(statusCounts).filter(s => s !== 'Tous')];
 
     // Selection Logic
     const toggleSelectAll = (e) => {
@@ -318,31 +335,73 @@ function OrdersListPage() {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <h2 className="text-lg font-bold text-slate-800">Historique des Commandes</h2>
-                        <div className="text-sm text-slate-400 mt-1">{orders.length} commandes trouvées</div>
+                        <div className="text-sm text-slate-400 mt-1">{filteredOrders.length} commandes trouvées</div>
                     </div>
-                    <div className="relative group">
-                        <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
-                        <input
-                            type="text"
-                            value={filterText}
-                            onChange={(e) => setFilterText(e.target.value)}
-                            placeholder="Rechercher..."
-                            className="pl-10 pr-4 py-2 w-full md:w-72 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all"
-                        />
-                    </div>
+                    <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center w-full md:w-auto">
 
-                    {/* Global Export Buttons */}
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={handleExportNewOrders}
-                            className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 text-red-700 rounded-lg hover:bg-red-100 transition-colors shadow-sm text-sm font-bold"
-                            title="Exporter les nouvelles commandes en PDF"
-                        >
-                            <FileText className="w-4 h-4" />
-                            <span className="hidden md:inline">Exporter Nouvelles (PDF)</span>
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm text-slate-500 font-medium whitespace-nowrap">Afficher :</span>
+                            <select
+                                value={itemsPerPage}
+                                onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                                className="border-slate-200 rounded-lg text-sm py-2 px-2 focus:ring-blue-500 focus:border-blue-500 bg-slate-50 w-full md:w-auto"
+                                title="Lignes par page"
+                            >
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                                <option value={filteredOrders.length}>ALL</option>
+                            </select>
+                        </div>
+
+                        <div className="relative group w-full md:w-auto">
+                            <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+                            <input
+                                type="text"
+                                value={filterText}
+                                onChange={(e) => setFilterText(e.target.value)}
+                                placeholder="Rechercher..."
+                                className="pl-10 pr-4 py-2 w-full md:w-72 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all"
+                            />
+                        </div>
+
+                        {/* Global Export Buttons */}
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={handleExportNewOrders}
+                                className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-red-50 border border-red-200 text-red-700 rounded-lg hover:bg-red-100 transition-colors shadow-sm text-sm font-bold whitespace-nowrap"
+                                title="Exporter les nouvelles commandes en PDF"
+                            >
+                                <FileText className="w-4 h-4" />
+                                <span className="inline">Exporter Nouvelles (PDF)</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
+
+                {/* Status Filter Tabs */}
+                <div className="flex items-center gap-2 flex-wrap px-1">
+                    {availableStatuses.map(status => (
+                        <button
+                            key={status}
+                            onClick={() => setStatusFilter(status)}
+                            className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors border ${statusFilter === status
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                                }`}
+                        >
+                            {status}
+                            <span className={`ml-1.5 text-xs font-normal py-0.5 px-1.5 rounded-full ${statusFilter === status
+                                ? 'bg-blue-500/30 text-white'
+                                : 'bg-slate-100 text-slate-500'
+                                }`}>
+                                {statusCounts[status]}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+
 
                 {/* Bulk Actions Bar */}
                 {selectedOrders.length > 0 && (
@@ -401,6 +460,7 @@ function OrdersListPage() {
                             </th>
                             <th className="px-6 py-4">Ref & Date</th>
                             <th className="px-6 py-4">Client</th>
+                            <th className="px-6 py-4">Produit</th>
                             <th className="px-6 py-4">Localisation</th>
                             <th className="px-6 py-4">Type</th>
                             <th className="px-6 py-4 text-right">Montant</th>
@@ -441,6 +501,11 @@ function OrdersListPage() {
                                                 <div className="text-sm font-medium text-slate-700">{order.client}</div>
                                                 <div className="text-xs text-slate-400">{order.phone}</div>
                                             </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="text-sm text-slate-700 max-w-[200px] whitespace-normal break-words" title={typeof order.product === 'string' ? order.product : ''}>
+                                            <strong>{order.product || <span className="text-slate-400 italic">Non spécifié</span>}</strong>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
@@ -675,19 +740,8 @@ function OrdersListPage() {
 
             {/* Pagination Controls */}
             <div className="px-6 py-4 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4 bg-slate-50/50">
-                <div className="flex items-center gap-2 text-sm text-slate-500">
-                    <span>Afficher</span>
-                    <select
-                        value={itemsPerPage}
-                        onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                        className="border-slate-200 rounded-md text-sm py-1 pl-2 pr-6 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                    >
-                        <option value={10}>10</option>
-                        <option value={20}>20</option>
-                        <option value={50}>50</option>
-                        <option value={100}>100</option>
-                    </select>
-                    <span>par page</span>
+                <div className="text-sm text-slate-500">
+                    Affichage de {Math.min(filteredOrders.length, (currentPage - 1) * itemsPerPage + 1)} à {Math.min(filteredOrders.length, currentPage * itemsPerPage)} sur {filteredOrders.length}
                 </div>
 
                 <div className="flex items-center gap-4">

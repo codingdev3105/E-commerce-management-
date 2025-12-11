@@ -1,5 +1,5 @@
 import { useNavigate, Outlet, Link, useLocation } from 'react-router-dom';
-import { LogOut, Shield, Plus, List, LayoutDashboard, BarChart as BarChartIcon, Truck } from 'lucide-react';
+import { LogOut, Shield, Plus, List, LayoutDashboard, BarChart as BarChartIcon, Truck, Map } from 'lucide-react';
 
 function MainLayout() {
     const navigate = useNavigate();
@@ -19,7 +19,7 @@ function MainLayout() {
 
             {/* Navbar / Header */}
             <header className="bg-white/80 backdrop-blur-md sticky top-0 z-30 border-b border-slate-200">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                <div className="max-w-[95%] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold uppercase">
                             {role.charAt(0)}
@@ -46,6 +46,9 @@ function MainLayout() {
                             <Link to="/noest-express-service" className={`text-sm font-medium transition-colors flex items-center gap-1 ${isActive('/noest-express-service') ? 'text-green-600' : 'text-slate-500 hover:text-slate-800'}`}>
                                 <Truck className="w-4 h-4" /> Noest
                             </Link>
+                            <Link to="/locations" className={`text-sm font-medium transition-colors flex items-center gap-1 ${isActive('/locations') ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}>
+                                <Map className="w-4 h-4" /> Couverture
+                            </Link>
                         </nav>
 
                         <button onClick={handleLogout} className="text-sm text-slate-500 font-medium hover:text-red-600 flex items-center gap-2 transition-colors">
@@ -55,7 +58,7 @@ function MainLayout() {
                 </div>
             </header>
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+            <main className="max-w-[95%] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
                 <Outlet />
             </main>
 
@@ -88,6 +91,13 @@ function MainLayout() {
                             <Truck className="w-6 h-6" />
                         </div>
                         <span className="text-[10px] font-medium">Noest</span>
+                    </Link>
+
+                    <Link to="/locations" className={`flex flex-col items-center gap-1 ${isActive('/locations') ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>
+                        <div className={`p-1 rounded-full ${isActive('/locations') ? 'bg-blue-50' : ''}`}>
+                            <Map className="w-6 h-6" />
+                        </div>
+                        <span className="text-[10px] font-medium">Geo</span>
                     </Link>
                 </nav>
             </div>

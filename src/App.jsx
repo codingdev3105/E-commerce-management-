@@ -7,7 +7,10 @@ import OrderDetailsPage from './pages/OrderDetailsPage';
 import StatisticsPage from './pages/StatisticsPage';
 import EditOrderPage from './pages/EditOrderPage';
 import NoestTrackingPage from './pages/NoestTrackingPage';
+import LocationsPage from './pages/LocationsPage';
 import { UIProvider } from './context/UIContext';
+import { AppDataProvider } from './context/AppDataContext';
+import { useEffect } from 'react';
 
 // Utility to check if JWT is expired
 const isTokenExpired = (token) => {
@@ -56,35 +59,39 @@ const PublicRoute = ({ children }) => {
 };
 
 function App() {
+
   return (
     <UIProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Public Login Route */}
-          <Route path="/" element={
-            <PublicRoute>
-              <LoginPage />
-            </PublicRoute>
-          } />
+      <AppDataProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Public Login Route */}
+            <Route path="/" element={
+              <PublicRoute>
+                <LoginPage />
+              </PublicRoute>
+            } />
 
-          {/* Protected Routes nested under Main Layout */}
-          <Route element={
-            <ProtectedRoute>
-              <MainLayout />
-            </ProtectedRoute>
-          }>
-            <Route path="/AjouterCommande" element={<AddOrderPage />} />
-            <Route path="/commandes" element={<OrdersListPage />} />
-            <Route path="/statistique" element={<StatisticsPage />} />
-            <Route path="/commandes/details/:id" element={<OrderDetailsPage />} />
-            <Route path="/modifier/:id" element={<EditOrderPage />} />
-            <Route path="/noest-express-service" element={<NoestTrackingPage />} />
-          </Route>
+            {/* Protected Routes nested under Main Layout */}
+            <Route element={
+              <ProtectedRoute>
+                <MainLayout />
+              </ProtectedRoute>
+            }>
+              <Route path="/AjouterCommande" element={<AddOrderPage />} />
+              <Route path="/commandes" element={<OrdersListPage />} />
+              <Route path="/statistique" element={<StatisticsPage />} />
+              <Route path="/commandes/details/:id" element={<OrderDetailsPage />} />
+              <Route path="/modifier/:id" element={<EditOrderPage />} />
+              <Route path="/noest-express-service" element={<NoestTrackingPage />} />
+              <Route path="/locations" element={<LocationsPage />} />
+            </Route>
 
-          {/* Catch all - Redirect to Login */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
+            {/* Catch all - Redirect to Login */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </AppDataProvider>
     </UIProvider>
   );
 }

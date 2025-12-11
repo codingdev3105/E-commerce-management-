@@ -1,12 +1,12 @@
-import { useState, useEffect, useMemo } from 'react';
-import { createOrder, getReferences } from '../services/api';
+import { useState, useMemo } from 'react';
+import { createOrder } from '../services/api';
 import { Plus, MapPin, Phone, User, Package, DollarSign, Truck } from 'lucide-react';
 import { useUI } from '../context/UIContext';
+import { useAppData } from '../context/AppDataContext';
 
 function AddOrderPage() {
     const { toast } = useUI();
-    const [refData, setRefData] = useState({ wilayas: [], communes: [], stations: [] });
-    const [loadingRef, setLoadingRef] = useState(true);
+    const { wilayas, communes, desks: stations, loading: loadingRef } = useAppData();
 
     const [newOrder, setNewOrder] = useState({
         reference: '',
@@ -25,37 +25,23 @@ function AddOrderPage() {
     });
     const [submitting, setSubmitting] = useState(false);
 
-    useEffect(() => {
-        fetchReferences();
-    }, []);
-
-    const fetchReferences = async () => {
-        setLoadingRef(true);
-        try {
-            const data = await getReferences();
-            setRefData(data);
-        } catch (error) {
-            console.error('Failed to fetch references', error);
-        } finally {
-            setLoadingRef(false);
-        }
-    };
-
     const availableCommunes = useMemo(() => {
         if (!newOrder.wilaya) return [];
-        return refData.communes.filter(c => c.wilaya_code === newOrder.wilaya);
-    }, [newOrder.wilaya, refData.communes]);
+        // Noest commune matches wilaya_id
+        return communes.filter(c => c.wilaya_id === parseInt(newOrder.wilaya));
+    }, [newOrder.wilaya, communes]);
 
     const availableStations = useMemo(() => {
         if (!newOrder.wilaya) return [];
-        return refData.stations.filter(s => s.code.toString().startsWith(newOrder.wilaya));
-    }, [newOrder.wilaya, refData.stations]);
+        // Noest station code (e.g., '1A') starts with wilaya code (e.g., '1')
+        // Using string comparison because desk codes are strings
+        return stations.filter(s => s.code.toString().startsWith(newOrder.wilaya.toString()));
+    }, [newOrder.wilaya, stations]);
 
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
         const val = type === 'checkbox' ? checked : value;
 
-        // Phone validation: exactly 10 digits starting with 0
         // Phone validation: only numbers, max 10 digits
         if (name === 'phone') {
             if (!/^\d*$/.test(val)) return;
@@ -70,7 +56,7 @@ function AddOrderPage() {
                 updated.stationName = '';
             }
             if (name === 'stationCode') {
-                const station = refData.stations.find(s => s.code === val);
+                const station = stations.find(s => s.code === val);
                 updated.stationName = station ? station.name : '';
             }
             return updated;
@@ -161,8 +147,8 @@ function AddOrderPage() {
                         <select required name="wilaya" value={newOrder.wilaya} onChange={handleInputChange}
                             className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none">
                             <option value="">Sélectionner...</option>
-                            {refData.wilayas.map(w => (
-                                <option key={w.code} value={w.code}>{w.code} - {w.name}</option>
+                            {wilayas.map(w => (
+                                <option key={w.code} value={w.code}>{w.code} - {w.nom}</option>
                             ))}
                         </select>
                     </div>
@@ -175,7 +161,7 @@ function AddOrderPage() {
                                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50">
                                     <option value="">Sélectionner...</option>
                                     {availableCommunes.map((c, idx) => (
-                                        <option key={idx} value={c.name}>{c.name}</option>
+                                        <option key={idx} value={c.nom}>{c.nom}</option>
                                     ))}
                                 </select>
                             </div>
@@ -203,7 +189,7 @@ function AddOrderPage() {
                     {/* Product */}
                     <div className="lg:col-span-3 space-y-1.5">
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Produit</label>
-                        <input type="text" name="product" value={newOrder.product} onChange={handleInputChange}
+                        <input required type="text" name="product" value={newOrder.product} onChange={handleInputChange}
                             className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                             placeholder="Détails du produit..." />
                     </div>

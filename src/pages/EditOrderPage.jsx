@@ -1,16 +1,16 @@
 import { useState, useEffect, useMemo } from 'react';
-import { updateOrder, getOrders, getReferences } from '../services/api';
+import { updateOrder, getOrders } from '../services/api';
 import { Save, MapPin, Phone, User, Package, DollarSign, Truck, ArrowLeft, Lock, AlertTriangle } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useUI } from '../context/UIContext';
+import { useAppData } from '../context/AppDataContext';
 
 function EditOrderPage() {
     const { id } = useParams();
     const navigate = useNavigate();
     const { toast } = useUI();
+    const { wilayas, communes, desks: stations, loading: loadingRef } = useAppData();
 
-    const [refData, setRefData] = useState({ wilayas: [], communes: [], stations: [] });
-    const [loadingRef, setLoadingRef] = useState(true);
     const [loadingOrder, setLoadingOrder] = useState(true);
 
     const [orderData, setOrderData] = useState({
@@ -32,21 +32,8 @@ function EditOrderPage() {
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
-        fetchReferences();
         fetchOrderDetails();
     }, [id]);
-
-    const fetchReferences = async () => {
-        setLoadingRef(true);
-        try {
-            const data = await getReferences();
-            setRefData(data);
-        } catch (error) {
-            console.error("Failed to fetch references", error);
-        } finally {
-            setLoadingRef(false);
-        }
-    };
 
     const fetchOrderDetails = async () => {
         setLoadingOrder(true);
@@ -85,13 +72,13 @@ function EditOrderPage() {
 
     const availableCommunes = useMemo(() => {
         if (!orderData.wilaya) return [];
-        return refData.communes.filter(c => c.wilaya_code === orderData.wilaya);
-    }, [orderData.wilaya, refData.communes]);
+        return communes.filter(c => c.wilaya_id === parseInt(orderData.wilaya));
+    }, [orderData.wilaya, communes]);
 
     const availableStations = useMemo(() => {
         if (!orderData.wilaya) return [];
-        return refData.stations.filter(s => s.code.toString().startsWith(orderData.wilaya));
-    }, [orderData.wilaya, refData.stations]);
+        return stations.filter(s => s.code.toString().startsWith(orderData.wilaya.toString()));
+    }, [orderData.wilaya, stations]);
 
     // --- PERMISSIONS LOGIC ---
     const currentState = (orderData.state || '').toLowerCase();
@@ -105,7 +92,6 @@ function EditOrderPage() {
         const { name, value, type, checked } = e.target;
         const val = type === 'checkbox' ? checked : value;
 
-        // Phone validation: exactly 10 digits starting with 0
         // Phone validation: only numbers, max 10 digits
         if (name === 'phone' && canEditFields) {
             if (!/^\d*$/.test(val)) return;
@@ -135,7 +121,7 @@ function EditOrderPage() {
                 updated.stationName = '';
             }
             if (name === 'stationCode') {
-                const station = refData.stations.find(s => s.code === val);
+                const station = stations.find(s => s.code === val);
                 updated.stationName = station ? station.name : '';
             }
             return updated;
@@ -147,6 +133,11 @@ function EditOrderPage() {
 
         if (orderData.isStopDesk && !orderData.stationCode) {
             toast.error("Veuillez sélectionner un bureau Stop Desk");
+            return;
+        }
+
+        if (!orderData.isStopDesk && !orderData.commune) {
+            toast.error("Veuillez sélectionner une commune");
             return;
         }
 
@@ -296,8 +287,8 @@ function EditOrderPage() {
                         <select required name="wilaya" value={orderData.wilaya} onChange={handleInputChange} disabled={!canEditFields}
                             className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none disabled:opacity-60 disabled:cursor-not-allowed">
                             <option value="">Sélectionner...</option>
-                            {refData.wilayas.map(w => (
-                                <option key={w.code} value={w.code}>{w.code} - {w.name}</option>
+                            {wilayas.map(w => (
+                                <option key={w.code} value={w.code}>{w.code} - {w.nom}</option>
                             ))}
                         </select>
                     </div>
@@ -307,11 +298,11 @@ function EditOrderPage() {
                         <>
                             <div className="space-y-1.5">
                                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Commune</label>
-                                <select name="commune" value={orderData.commune} onChange={handleInputChange} disabled={!canEditFields || !orderData.wilaya}
+                                <select required name="commune" value={orderData.commune} onChange={handleInputChange} disabled={!canEditFields || !orderData.wilaya}
                                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed">
                                     <option value="">{orderData.commune || 'Sélectionner...'}</option>
                                     {availableCommunes.map((c, idx) => (
-                                        <option key={idx} value={c.name}>{c.name}</option>
+                                        <option key={idx} value={c.nom}>{c.nom}</option>
                                     ))}
                                 </select>
                             </div>
@@ -342,7 +333,7 @@ function EditOrderPage() {
                     {/* Product */}
                     <div className="lg:col-span-3 space-y-1.5">
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Produit</label>
-                        <input type="text" name="product" value={orderData.product} onChange={handleInputChange} disabled={!canEditFields}
+                        <input required type="text" name="product" value={orderData.product} onChange={handleInputChange} disabled={!canEditFields}
                             className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                             placeholder="Détails du produit..." />
                     </div>
@@ -375,7 +366,7 @@ function EditOrderPage() {
                             </div>
                             <div className="flex-1">
                                 <label className="block text-xs font-bold text-blue-700 uppercase mb-1">Bureau Stop Desk ({orderData.wilaya ? `Wilaya ${orderData.wilaya}` : '...'})</label>
-                                <select name="stationCode" value={orderData.stationCode} onChange={handleInputChange} disabled={!canEditFields}
+                                <select required name="stationCode" value={orderData.stationCode} onChange={handleInputChange} disabled={!canEditFields}
                                     className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm text-blue-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-60 disabled:cursor-not-allowed">
                                     <option value="">{orderData.stationCode ? orderData.stationCode : 'Choisir une station...'}</option>
                                     {availableStations.map((s, idx) => (
