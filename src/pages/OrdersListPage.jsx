@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { getOrders, deleteOrder, updateOrder, sendToNoest } from '../services/api';
+import { getOrders, deleteOrder, updateOrder, sendToNoest, getValidationRules } from '../services/api';
 import { Search, Eye, Truck, Home, RefreshCw, Trash2, Pencil, Send, ChevronLeft, ChevronRight, ChevronFirst, ChevronLast, Phone, FileDown, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUI } from '../context/UIContext';
 import { useAppData } from '../context/AppDataContext';
+import { useStates } from '../context/StatesContext';
 import { exportToPDF } from '../services/exportService';
 import { getNoestWilayas, getNoestCommunes, getNoestDesks } from '../services/api';
 
@@ -15,6 +16,7 @@ function OrdersListPage() {
     const navigate = useNavigate();
     const { toast, confirm } = useUI();
     const { wilayas } = useAppData();
+    const { availableStates } = useStates();
 
     const [selectedOrders, setSelectedOrders] = useState([]);
     const [bulkState, setBulkState] = useState('');
@@ -45,7 +47,7 @@ function OrdersListPage() {
     const handleDelete = async (id, ref) => {
         const confirmed = await confirm({
             title: "Supprimer la commande ?",
-            message: `Êtes-vous sûr de vouloir supprimer la commande ${ref} ? Cette action est irréversible.`,
+            message: `Êtes - vous sûr de vouloir supprimer la commande ${ref} ? Cette action est irréversible.`,
             type: "danger",
             confirmText: "Oui, supprimer",
             cancelText: "Annuler"
@@ -78,12 +80,12 @@ function OrdersListPage() {
 
         // Export PDF
         await exportToPDF(newOrders, filename, role);
-        toast.success(`Export PDF téléchargé ! (${newOrders.length} nouvelles commandes)`);
+        toast.success(`Export PDF téléchargé!(${newOrders.length} nouvelles commandes)`);
 
         // Ask user if they want to update status to 'Atelier'
         const confirmed = await confirm({
             title: "Mise à jour des états",
-            message: `${newOrders.length} nouvelles commandes ont été exportées. Voulez-vous changer leur état vers "Atelier" ?`,
+            message: `${newOrders.length} nouvelles commandes ont été exportées.Voulez - vous changer leur état vers "Atelier" ? `,
             type: "confirm",
             confirmText: "Oui, passer à Atelier",
             cancelText: "Non, garder Nouvelle"
@@ -97,7 +99,7 @@ function OrdersListPage() {
                     return updateOrder(o.rowId, payload);
                 });
                 await Promise.all(updates);
-                toast.success(`${newOrders.length} commandes passées en 'Atelier' !`);
+                toast.success(`${newOrders.length} commandes passées en 'Atelier'!`);
                 fetchOrders();
             } catch (error) {
                 console.error("State update failed", error);
@@ -121,7 +123,7 @@ function OrdersListPage() {
     const handleSendToNoest = async (rowId, ref) => {
         const confirmed = await confirm({
             title: "Envoyer vers Noest ?",
-            message: `Voulez-vous envoyer la commande ${ref} vers Noest Express ? Un numéro de tracking sera généré.`,
+            message: `Voulez - vous envoyer la commande ${ref} vers Noest Express ? Un numéro de tracking sera généré.`,
             type: "confirm",
             confirmText: "Oui, envoyer",
             cancelText: "Annuler"
@@ -131,7 +133,7 @@ function OrdersListPage() {
             try {
                 console.log(rowId);
                 const result = await sendToNoest(rowId);
-                toast.success(`Commande envoyée ! Tracking: ${result.tracking}`);
+                toast.success(`Commande envoyée! Tracking: ${result.tracking} `);
                 fetchOrders(); // Refresh to show updated state
             } catch (error) {
                 toast.error("Erreur lors de l'envoi vers Noest");
@@ -288,7 +290,7 @@ function OrdersListPage() {
 
         const confirmed = await confirm({
             title: "Confirmation de mise à jour",
-            message: `Voulez-vous passer ${selectedOrders.length} commandes de "${currentState}" vers "${bulkState}" ?`,
+            message: `Voulez - vous passer ${selectedOrders.length} commandes de "${currentState}" vers "${bulkState}" ? `,
             type: "confirm",
             confirmText: "Appliquer",
         });
@@ -309,7 +311,7 @@ function OrdersListPage() {
 
             await Promise.all(updates);
 
-            toast.success(`${selectedOrders.length} commandes mises à jour !`);
+            toast.success(`${selectedOrders.length} commandes mises à jour!`);
             setBulkState('');
             setSelectedOrders([]);
             fetchOrders();
@@ -358,14 +360,24 @@ function OrdersListPage() {
                         </div>
 
                         <div className="relative group w-full md:w-auto">
-                            <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-blue-600 transition-colors pointer-events-none" />
                             <input
                                 type="text"
                                 value={filterText}
                                 onChange={(e) => setFilterText(e.target.value)}
-                                placeholder="Rechercher..."
-                                className="pl-10 pr-4 py-2 w-full md:w-72 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all"
+                                placeholder="Rechercher une commande..."
+                                className="pl-12 pr-4 py-3 w-full md:w-80 bg-white border-2 border-slate-200 rounded-xl text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 focus:outline-none transition-all shadow-sm hover:shadow-md"
                             />
+                            {filterText && (
+                                <button
+                                    onClick={() => setFilterText('')}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 rounded-full transition-colors"
+                                >
+                                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            )}
                         </div>
 
                         {/* Global Export Buttons */}
@@ -388,17 +400,19 @@ function OrdersListPage() {
                         <button
                             key={status}
                             onClick={() => setStatusFilter(status)}
-                            className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors border ${statusFilter === status
-                                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                            className={`group relative px-4 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap transition-all duration-200 border-2 ${statusFilter === status
+                                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-transparent shadow-lg shadow-blue-500/30 scale-105'
+                                : 'bg-white text-slate-700 border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 hover:shadow-md'
                                 }`}
                         >
-                            {status}
-                            <span className={`ml-1.5 text-xs font-normal py-0.5 px-1.5 rounded-full ${statusFilter === status
-                                ? 'bg-blue-500/30 text-white'
-                                : 'bg-slate-100 text-slate-500'
-                                }`}>
-                                {statusCounts[status]}
+                            <span className="flex items-center gap-2">
+                                {status}
+                                <span className={`inline-flex items-center justify-center min-w-[24px] h-6 px-2 text-xs font-bold rounded-full transition-all ${statusFilter === status
+                                    ? 'bg-white/20 text-white backdrop-blur-sm'
+                                    : 'bg-slate-100 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700'
+                                    }`}>
+                                    {statusCounts[status]}
+                                </span>
                             </span>
                         </button>
                     ))}
@@ -419,9 +433,9 @@ function OrdersListPage() {
                             className="w-full md:w-auto text-sm border-slate-200 rounded-md focus:border-blue-500 focus:ring-blue-500"
                         >
                             <option value="">Modifier l'état...</option>
-                            <option value="Nouvelle">Nouvelle</option>
-                            <option value="Atelier">Atelier</option>
-                            <option value="Annuler">Annuler</option>
+                            {availableStates.map(state => (
+                                <option key={state} value={state}>{state}</option>
+                            ))}
                         </select>
 
                         <button
@@ -481,7 +495,7 @@ function OrdersListPage() {
                             </tr>
                         ) : (
                             paginatedOrders.map((order) => (
-                                <tr key={order.rowId} className={`hover:bg-blue-50/30 transition-colors group ${selectedOrders.includes(order.rowId) ? 'bg-blue-50/50' : ''}`}>
+                                <tr key={order.rowId} className={`hover: bg - blue - 50 / 30 transition - colors group ${selectedOrders.includes(order.rowId) ? 'bg-blue-50/50' : ''} `}>
                                     <td className="px-6 py-4">
                                         <input
                                             type="checkbox"
@@ -539,14 +553,14 @@ function OrdersListPage() {
                                         <div className="text-sm font-bold text-slate-800">{order.amount} <span className="text-xs font-normal text-slate-500">DA</span></div>
                                     </td>
                                     <td className="px-6 py-4 text-center">
-                                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold shadow-sm ${getStateColor(order.state)}`}>
+                                        <span className={`inline - flex items - center px - 3 py - 1 rounded - full text - xs font - bold shadow - sm ${getStateColor(order.state)} `}>
                                             {order.state}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-center">
                                         <div className="flex items-center justify-center gap-2">
                                             <button
-                                                onClick={() => navigate(`/commandes/details/${order.rowId}`)}
+                                                onClick={() => navigate(`/ commandes / details / ${order.rowId} `)}
                                                 className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                                 title="Voir les détails"
                                             >
@@ -554,12 +568,12 @@ function OrdersListPage() {
                                             </button>
 
                                             <button
-                                                onClick={() => navigate(`/modifier/${order.rowId}`)}
+                                                onClick={() => navigate(`/ modifier / ${order.rowId} `)}
                                                 disabled={order.state.includes('System')}
-                                                className={`p-2 rounded-lg transition-colors ${order.state.includes('System')
+                                                className={`p - 2 rounded - lg transition - colors ${order.state.includes('System')
                                                     ? 'text-slate-200 cursor-not-allowed'
                                                     : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50'
-                                                    }`}
+                                                    } `}
                                                 title={order.state.includes('System') ? "Modification interdite (System)" : "Modifier"}
                                             >
                                                 <Pencil className="w-4 h-4" />
@@ -568,10 +582,10 @@ function OrdersListPage() {
                                             <button
                                                 onClick={() => handleSendToNoest(order.rowId, order.reference)}
                                                 disabled={order.state !== 'Atelier'}
-                                                className={`p-2 rounded-lg transition-colors ${order.state === 'Atelier'
+                                                className={`p - 2 rounded - lg transition - colors ${order.state === 'Atelier'
                                                     ? 'text-slate-400 hover:text-green-600 hover:bg-green-50'
                                                     : 'text-slate-200 cursor-not-allowed'
-                                                    }`}
+                                                    } `}
                                                 title={order.state === 'Atelier' ? "Envoyer vers Noest" : "Envoi disponible uniquement en 'Atelier'"}
                                             >
                                                 <Send className="w-4 h-4" />
@@ -580,10 +594,10 @@ function OrdersListPage() {
                                             <button
                                                 onClick={() => handleDelete(order.rowId, order.reference)}
                                                 disabled={order.state.includes('System')}
-                                                className={`p-2 rounded-lg transition-colors ${order.state.includes('System')
+                                                className={`p - 2 rounded - lg transition - colors ${order.state.includes('System')
                                                     ? 'text-slate-200 cursor-not-allowed'
                                                     : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
-                                                    }`}
+                                                    } `}
                                                 title={order.state.includes('System') ? "Suppression interdite (System)" : "Supprimer"}
                                             >
                                                 <Trash2 className="w-4 h-4" />
@@ -619,7 +633,7 @@ function OrdersListPage() {
                         </div>
 
                         {paginatedOrders.map((order) => (
-                            <div key={order.rowId} className={`bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden ${selectedOrders.includes(order.rowId) ? 'ring-2 ring-blue-500 border-transparent' : ''}`}>
+                            <div key={order.rowId} className={`bg - white rounded - xl border border - slate - 200 shadow - sm overflow - hidden ${selectedOrders.includes(order.rowId) ? 'ring-2 ring-blue-500 border-transparent' : ''} `}>
                                 <div className="p-4 space-y-4">
                                     {/* Header: Checkbox + Ref + Date + Status + Amount */}
                                     <div className="flex items-start justify-between">
@@ -637,7 +651,7 @@ function OrdersListPage() {
                                             </div>
                                         </div>
                                         <div className="flex flex-col items-end gap-1">
-                                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${getStateColor(order.state)}`}>
+                                            <span className={`inline - flex items - center px - 2.5 py - 1 rounded - full text - xs font - bold ${getStateColor(order.state)} `}>
                                                 {order.state}
                                             </span>
                                         </div>
@@ -692,7 +706,7 @@ function OrdersListPage() {
 
                                         <div className="flex items-center gap-2">
                                             <button
-                                                onClick={() => navigate(`/commandes/details/${order.rowId}`)}
+                                                onClick={() => navigate(`/ commandes / details / ${order.rowId} `)}
                                                 className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-slate-100"
                                                 title="Voir les détails"
                                             >
@@ -700,12 +714,12 @@ function OrdersListPage() {
                                             </button>
 
                                             <button
-                                                onClick={() => navigate(`/modifier/${order.rowId}`)}
+                                                onClick={() => navigate(`/ modifier / ${order.rowId} `)}
                                                 disabled={order.state.includes('System')}
-                                                className={`p-2 rounded-lg transition-colors border border-slate-100 ${order.state.includes('System')
+                                                className={`p - 2 rounded - lg transition - colors border border - slate - 100 ${order.state.includes('System')
                                                     ? 'text-slate-200 cursor-not-allowed'
                                                     : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50'
-                                                    }`}
+                                                    } `}
                                             >
                                                 <Pencil className="w-4 h-4" />
                                             </button>
@@ -713,10 +727,10 @@ function OrdersListPage() {
                                             <button
                                                 onClick={() => handleSendToNoest(order.rowId, order.reference)}
                                                 disabled={order.state !== 'Atelier'}
-                                                className={`p-2 rounded-lg transition-colors border border-slate-100 ${order.state === 'Atelier'
+                                                className={`p - 2 rounded - lg transition - colors border border - slate - 100 ${order.state === 'Atelier'
                                                     ? 'text-slate-400 hover:text-green-600 hover:bg-green-50'
                                                     : 'text-slate-200 cursor-not-allowed'
-                                                    }`}
+                                                    } `}
                                             >
                                                 <Send className="w-4 h-4" />
                                             </button>
@@ -724,10 +738,10 @@ function OrdersListPage() {
                                             <button
                                                 onClick={() => handleDelete(order.rowId, order.reference)}
                                                 disabled={order.state.includes('System')}
-                                                className={`p-2 rounded-lg transition-colors border border-slate-100 ${order.state.includes('System')
+                                                className={`p - 2 rounded - lg transition - colors border border - slate - 100 ${order.state.includes('System')
                                                     ? 'text-slate-200 cursor-not-allowed'
                                                     : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
-                                                    }`}
+                                                    } `}
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>

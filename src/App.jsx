@@ -10,6 +10,7 @@ import NoestTrackingPage from './pages/NoestTrackingPage';
 import LocationsPage from './pages/LocationsPage';
 import { UIProvider } from './context/UIContext';
 import { AppDataProvider } from './context/AppDataContext';
+import { StatesProvider } from './context/StatesContext';
 import { useEffect } from 'react';
 
 // Utility to check if JWT is expired
@@ -31,22 +32,24 @@ const isTokenExpired = (token) => {
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('token');
+  const role = localStorage.getItem('role');
 
-  if (!token || isTokenExpired(token)) {
-    // Clean up if expired
-    localStorage.removeItem('token');
-    localStorage.removeItem('role');
+  // Check token validity
+  if (!token || isTokenExpired(token) || !role) {
     return <Navigate to="/" replace />;
   }
+
   return children;
 };
 
-// Public Route (redirects to /statistique if already logged in AND valid)
+// Public Route Component (redirect to /commandes if already logged in)
 const PublicRoute = ({ children }) => {
   const token = localStorage.getItem('token');
+  const role = localStorage.getItem('role');
 
-  if (token && !isTokenExpired(token)) {
-    return <Navigate to="/statistique" replace />;
+  // If user is authenticated and token is valid, redirect to orders page
+  if (token && !isTokenExpired(token) && role) {
+    return <Navigate to="/commandes" replace />;
   }
 
   // If token exists but expired, clean it up
@@ -63,34 +66,36 @@ function App() {
   return (
     <UIProvider>
       <AppDataProvider>
-        <BrowserRouter>
-          <Routes>
-            {/* Public Login Route */}
-            <Route path="/" element={
-              <PublicRoute>
-                <LoginPage />
-              </PublicRoute>
-            } />
+        <StatesProvider>
+          <BrowserRouter>
+            <Routes>
+              {/* Public Login Route */}
+              <Route path="/" element={
+                <PublicRoute>
+                  <LoginPage />
+                </PublicRoute>
+              } />
 
-            {/* Protected Routes nested under Main Layout */}
-            <Route element={
-              <ProtectedRoute>
-                <MainLayout />
-              </ProtectedRoute>
-            }>
-              <Route path="/AjouterCommande" element={<AddOrderPage />} />
-              <Route path="/commandes" element={<OrdersListPage />} />
-              <Route path="/statistique" element={<StatisticsPage />} />
-              <Route path="/commandes/details/:id" element={<OrderDetailsPage />} />
-              <Route path="/modifier/:id" element={<EditOrderPage />} />
-              <Route path="/noest-express-service" element={<NoestTrackingPage />} />
-              <Route path="/locations" element={<LocationsPage />} />
-            </Route>
+              {/* Protected Routes nested under Main Layout */}
+              <Route element={
+                <ProtectedRoute>
+                  <MainLayout />
+                </ProtectedRoute>
+              }>
+                <Route path="/AjouterCommande" element={<AddOrderPage />} />
+                <Route path="/commandes" element={<OrdersListPage />} />
+                <Route path="/statistique" element={<StatisticsPage />} />
+                <Route path="/commandes/details/:id" element={<OrderDetailsPage />} />
+                <Route path="/modifier/:id" element={<EditOrderPage />} />
+                <Route path="/noest-express-service" element={<NoestTrackingPage />} />
+                <Route path="/locations" element={<LocationsPage />} />
+              </Route>
 
-            {/* Catch all - Redirect to Login */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </BrowserRouter>
+              {/* Catch all - Redirect to Login */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </BrowserRouter>
+        </StatesProvider>
       </AppDataProvider>
     </UIProvider>
   );

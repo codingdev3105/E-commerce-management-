@@ -6,7 +6,7 @@ import axios from 'axios';
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 const api = axios.create({
-    baseURL: baseURL,
+    baseURL: 'http://localhost:3001/api',
 });
 
 // Add a request interceptor to inject the token
@@ -59,6 +59,11 @@ export const updateOrder = async (id, orderData) => {
     return response.data;
 };
 
+export const getValidationRules = async (column) => {
+    const response = await api.get(`/commandes/validation/${column}`);
+    return response.data;
+};
+
 export const getReferences = async () => {
     const response = await api.get('/references');
     return response.data;
@@ -75,7 +80,7 @@ export const getNoestTrackingInfo = async (trackingsArray) => {
 };
 
 export const getNoestDesks = async () => {
-    const response = await api.get('/noest/desks'); 
+    const response = await api.get('/noest/desks');
     return response.data;
 };
 
@@ -87,7 +92,7 @@ export const getNoestCommunes = async (wilayaId) => {
 
 export const getNoestWilayas = async () => {
     const response = await api.get('/noest/wilayas');
-    
+
     return response.data;
 };
 

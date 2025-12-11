@@ -4,12 +4,14 @@ import { Save, MapPin, Phone, User, Package, DollarSign, Truck, ArrowLeft, Lock,
 import { useParams, useNavigate } from 'react-router-dom';
 import { useUI } from '../context/UIContext';
 import { useAppData } from '../context/AppDataContext';
+import { useStates } from '../context/StatesContext';
 
 function EditOrderPage() {
     const { id } = useParams();
     const navigate = useNavigate();
     const { toast } = useUI();
     const { wilayas, communes, desks: stations, loading: loadingRef } = useAppData();
+    const { availableStates } = useStates();
 
     const [loadingOrder, setLoadingOrder] = useState(true);
 
@@ -235,13 +237,15 @@ function EditOrderPage() {
                                 ) : isCancelled ? (
                                     <>
                                         <option value={orderData.state}>{orderData.state} (Actuel)</option>
-                                        <option value="Nouvelle">Nouvelle</option>
+                                        {availableStates.filter(s => !s.includes('Annuler')).map(state => (
+                                            <option key={state} value={state}>{state}</option>
+                                        ))}
                                     </>
                                 ) : (
                                     <>
-                                        <option value="Nouvelle">Nouvelle</option>
-                                        <option value="Atelier">Atelier</option>
-                                        <option value="Annuler">Annuler</option>
+                                        {availableStates.map(state => (
+                                            <option key={state} value={state}>{state}</option>
+                                        ))}
                                     </>
                                 )}
                             </select>
