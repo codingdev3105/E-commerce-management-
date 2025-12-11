@@ -19,6 +19,7 @@ function LocationsPage() {
     const [allWilayas, setAllWilayas] = useState([]);
 
     useEffect(() => {
+        setSearchTerm(''); // Reset search on tab change
         fetchData();
     }, [activeTab]);
 
