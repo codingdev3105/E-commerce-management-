@@ -365,7 +365,7 @@ function EditOrderPage() {
                                 <Truck className="w-5 h-5" />
                             </div>
                             <div className="flex-1">
-                                <label className="block text-xs font-bold text-blue-700 uppercase mb-1">Bureau Stop Desk ({orderData.wilaya ? `Wilaya ${orderData.wilaya}` : '...'})</label>
+                                <label className="block text-xs font-bold text-blue-700 uppercase mb-1">Bureau Stop Desk ({orderData.wilaya ? `${wilayas.find(w => w.code == orderData.wilaya)?.nom || ''} ${orderData.wilaya}` : '...'})</label>
                                 <select required name="stationCode" value={orderData.stationCode} onChange={handleInputChange} disabled={!canEditFields}
                                     className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm text-blue-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-60 disabled:cursor-not-allowed">
                                     <option value="">{orderData.stationCode ? orderData.stationCode : 'Choisir une station...'}</option>

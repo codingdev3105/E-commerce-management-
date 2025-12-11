@@ -2,12 +2,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { getOrders } from '../services/api';
 import { ArrowLeft, Package, User, Phone, MapPin, Calendar, DollarSign, Truck, FileText, Info } from 'lucide-react';
+import { useAppData } from '../context/AppDataContext';
 
 function OrderDetailsPage() {
     const { id } = useParams(); // This is currently the Reference (e.g. REF-001)
     const navigate = useNavigate();
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
+    const { wilayas } = useAppData();
 
     useEffect(() => {
         const fetchOrder = async () => {
@@ -98,7 +100,7 @@ function OrderDetailsPage() {
                     <div className="space-y-3">
                         <div>
                             <div className="text-xs text-slate-400">Wilaya</div>
-                            <div className="font-medium text-slate-800">Wilaya {order.wilaya}</div>
+                            <div className="font-medium text-slate-800">{wilayas.find(w => w.code == order.wilaya)?.nom || ''} {order.wilaya}</div>
                         </div>
                         {order.isStopDesk ? (
                             <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">

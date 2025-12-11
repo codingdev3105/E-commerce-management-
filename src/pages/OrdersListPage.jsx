@@ -3,6 +3,7 @@ import { getOrders, deleteOrder, updateOrder, sendToNoest } from '../services/ap
 import { Search, Eye, Truck, Home, RefreshCw, Trash2, Pencil, Send, ChevronLeft, ChevronRight, ChevronFirst, ChevronLast, Phone, FileDown, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUI } from '../context/UIContext';
+import { useAppData } from '../context/AppDataContext';
 import { exportToPDF } from '../services/exportService';
 import { getNoestWilayas, getNoestCommunes, getNoestDesks } from '../services/api';
 
@@ -13,6 +14,7 @@ function OrdersListPage() {
     const [statusFilter, setStatusFilter] = useState('Tous');
     const navigate = useNavigate();
     const { toast, confirm } = useUI();
+    const { wilayas } = useAppData();
 
     const [selectedOrders, setSelectedOrders] = useState([]);
     const [bulkState, setBulkState] = useState('');
@@ -29,7 +31,7 @@ function OrdersListPage() {
     const fetchOrders = async () => {
         setLoading(true);
         try {
-            const data = await getOrders(); 
+            const data = await getOrders();
             setOrders(data);
             setSelectedOrders([]); // Reset selection on refresh
         } catch (error) {
@@ -510,7 +512,7 @@ function OrdersListPage() {
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex flex-col text-sm">
-                                            <span className="font-medium text-slate-700">{order.wilaya}</span>
+                                            <span className="font-medium text-slate-700">{wilayas.find(w => w.code == order.wilaya)?.nom || ''} {order.wilaya}</span>
                                             {order.commune && <span className="text-slate-500 text-xs">{order.commune}</span>}
                                             {order.address && <span className="text-slate-400 text-xs truncate max-w-[150px]" title={order.address}>{order.address}</span>}
                                         </div>

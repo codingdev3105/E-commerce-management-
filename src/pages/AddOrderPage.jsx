@@ -205,7 +205,7 @@ function AddOrderPage() {
                         <div className="lg:col-span-4 bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center gap-4">
                             <div className="bg-blue-200 p-2 rounded-lg text-blue-700"><Truck className="w-5 h-5" /></div>
                             <div className="flex-1">
-                                <label className="block text-xs font-bold text-blue-700 uppercase mb-1">Bureau Stop Desk ({newOrder.wilaya ? `Wilaya ${newOrder.wilaya}` : '...'})</label>
+                                <label className="block text-xs font-bold text-blue-700 uppercase mb-1">Bureau Stop Desk ({newOrder.wilaya ? `${wilayas.find(w => w.code == newOrder.wilaya)?.nom || ''} ${newOrder.wilaya}` : '...'})</label>
                                 <select required name="stationCode" value={newOrder.stationCode} onChange={handleInputChange}
                                     className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm text-blue-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                     <option value="">Choisir une station...</option>
