@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { getNoestWilayas, getNoestCommunes, getNoestDesks } from '../services/api';
 import { MapPin, Building, Truck, Search, Map, Copy } from 'lucide-react';
 import { useUI } from '../context/UIContext';
+import { useAppData } from '../context/AppDataContext';
 
 function LocationsPage() {
     const [activeTab, setActiveTab] = useState('wilayas');
@@ -9,6 +10,7 @@ function LocationsPage() {
     const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const { toast } = useUI();
+    const { wilayas: sheetWilayas } = useAppData();
 
     const handleCopy = (text, label) => {
         if (!text) return;
@@ -120,6 +122,8 @@ function LocationsPage() {
                                     <>
                                         <th className="px-6 py-4">Code</th>
                                         <th className="px-6 py-4">Nom de la Wilaya</th>
+                                        <th className="px-6 py-4">Livraison (Dom)</th>
+                                        <th className="px-6 py-4">Livraison (Stop)</th>
                                         <th className="px-6 py-4">Statut</th>
                                     </>
                                 )}
@@ -145,18 +149,27 @@ function LocationsPage() {
                         <tbody className="divide-y divide-slate-100">
                             {filteredData.map((item, index) => (
                                 <tr key={item.id || item.code || index} className="hover:bg-blue-50/30 transition-colors">
-                                    {activeTab === 'wilayas' && (
-                                        <>
-                                            <td className="px-6 py-4 font-mono text-slate-500">{item.code}</td>
-                                            <td className="px-6 py-4 font-bold text-slate-700">{item.nom}</td>
-                                            <td className="px-6 py-4">
-                                                {item.is_active ?
-                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Actif</span>
-                                                    : <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">Inactif</span>
-                                                }
-                                            </td>
-                                        </>
-                                    )}
+                                    {activeTab === 'wilayas' && (() => {
+                                        const wilayaData = sheetWilayas?.find(w => String(w.code) === String(item.code));
+                                        return (
+                                            <>
+                                                <td className="px-6 py-4 font-mono text-slate-500">{item.code}</td>
+                                                <td className="px-6 py-4 font-bold text-slate-700">{item.nom}</td>
+                                                <td className="px-6 py-4 font-medium text-slate-600">
+                                                    {wilayaData?.delivery_price ? `${wilayaData.delivery_price} DA` : '-'}
+                                                </td>
+                                                <td className="px-6 py-4 font-medium text-slate-600">
+                                                    {wilayaData?.delivery_price_desk ? `${wilayaData.delivery_price_desk} DA` : '-'}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    {item.is_active ?
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Actif</span>
+                                                        : <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">Inactif</span>
+                                                    }
+                                                </td>
+                                            </>
+                                        );
+                                    })()}
                                     {activeTab === 'communes' && (
                                         <>
                                             <td className="px-6 py-4 font-mono text-slate-500">{item.code_postal}</td>

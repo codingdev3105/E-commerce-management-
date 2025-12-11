@@ -553,7 +553,7 @@ function OrdersListPage() {
                                         <div className="text-sm font-bold text-slate-800">{order.amount} <span className="text-xs font-normal text-slate-500">DA</span></div>
                                     </td>
                                     <td className="px-6 py-4 text-center">
-                                        <span className={`inline - flex items - center px - 3 py - 1 rounded - full text - xs font - bold shadow - sm ${getStateColor(order.state)} `}>
+                                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold shadow-sm ${getStateColor(order.state)}`}>
                                             {order.state}
                                         </span>
                                     </td>
