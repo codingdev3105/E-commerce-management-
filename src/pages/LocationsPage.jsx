@@ -103,103 +103,187 @@ function LocationsPage() {
         }
 
         return (
-            <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                    <thead>
-                        <tr className="bg-slate-50/50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                            {activeTab === 'wilayas' && (
-                                <>
-                                    <th className="px-6 py-4">Code</th>
-                                    <th className="px-6 py-4">Nom de la Wilaya</th>
-                                    <th className="px-6 py-4">Statut</th>
-                                </>
-                            )}
-                            {activeTab === 'communes' && (
-                                <>
-                                    <th className="px-6 py-4">Code Postal</th>
-                                    <th className="px-6 py-4">Nom de la Commune</th>
-                                    <th className="px-6 py-4">Wilaya ID</th>
-                                </>
-                            )}
-                            {activeTab === 'desks' && (
-                                <>
-                                    <th className="px-6 py-4">Code</th>
-                                    <th className="px-6 py-4">Station</th>
-                                    <th className="px-6 py-4">Adresse</th>
-                                    <th className="px-6 py-4">Téléphone</th>
-                                    <th className="px-6 py-4">Localisation</th>
-                                    <th className="px-6 py-4">Actions</th>
-                                </>
-                            )}
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                        {filteredData.map((item, index) => (
-                            <tr key={item.id || item.code || index} className="hover:bg-blue-50/30 transition-colors">
+            <>
+                {/* Desktop Table */}
+                <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead>
+                            <tr className="bg-slate-50/50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
                                 {activeTab === 'wilayas' && (
                                     <>
-                                        <td className="px-6 py-4 font-mono text-slate-500">{item.code}</td>
-                                        <td className="px-6 py-4 font-bold text-slate-700">{item.nom}</td>
-                                        <td className="px-6 py-4">
-                                            {item.is_active ?
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Actif</span>
-                                                : <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">Inactif</span>
-                                            }
-                                        </td>
+                                        <th className="px-6 py-4">Code</th>
+                                        <th className="px-6 py-4">Nom de la Wilaya</th>
+                                        <th className="px-6 py-4">Statut</th>
                                     </>
                                 )}
                                 {activeTab === 'communes' && (
                                     <>
-                                        <td className="px-6 py-4 font-mono text-slate-500">{item.code_postal}</td>
-                                        <td className="px-6 py-4 font-bold text-slate-700">{item.nom}</td>
-                                        <td className="px-6 py-4 text-slate-500">{item.wilaya_id}</td>
+                                        <th className="px-6 py-4">Code Postal</th>
+                                        <th className="px-6 py-4">Nom de la Commune</th>
+                                        <th className="px-6 py-4">Wilaya ID</th>
                                     </>
                                 )}
                                 {activeTab === 'desks' && (
                                     <>
-                                        <td className="px-6 py-4 font-mono text-slate-500">{item.code}</td>
-                                        <td className="px-6 py-4 font-bold text-slate-700">{item.name}</td>
-                                        <td className="px-6 py-4 text-xs text-slate-500 max-w-xs">{item.address}</td>
-                                        <td className="px-6 py-4 text-xs text-slate-500">{formatPhones(item.phones)}</td>
-                                        <td className="px-6 py-4">
-                                            {item.map && (
-                                                <a
-                                                    href={item.map}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs font-medium"
-                                                >
-                                                    <MapPin className="w-4 h-4" /> Voir
-                                                </a>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2">
-                                                {item.map && (
-                                                    <button
-                                                        onClick={() => handleCopy(item.map, "Lien Map")}
-                                                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                                        title="Copier le lien Google Maps"
-                                                    >
-                                                        <Map className="w-4 h-4" />
-                                                    </button>
-                                                )}
-                                                <button
-                                                    onClick={() => handleCopy(item.address, "Adresse")}
-                                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                                    title="Copier l'adresse"
-                                                >
-                                                    <Copy className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </td>
+                                        <th className="px-6 py-4">Code</th>
+                                        <th className="px-6 py-4">Station</th>
+                                        <th className="px-6 py-4">Adresse</th>
+                                        <th className="px-6 py-4">Téléphone</th>
+                                        <th className="px-6 py-4">Localisation</th>
+                                        <th className="px-6 py-4">Actions</th>
                                     </>
                                 )}
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {filteredData.map((item, index) => (
+                                <tr key={item.id || item.code || index} className="hover:bg-blue-50/30 transition-colors">
+                                    {activeTab === 'wilayas' && (
+                                        <>
+                                            <td className="px-6 py-4 font-mono text-slate-500">{item.code}</td>
+                                            <td className="px-6 py-4 font-bold text-slate-700">{item.nom}</td>
+                                            <td className="px-6 py-4">
+                                                {item.is_active ?
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Actif</span>
+                                                    : <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">Inactif</span>
+                                                }
+                                            </td>
+                                        </>
+                                    )}
+                                    {activeTab === 'communes' && (
+                                        <>
+                                            <td className="px-6 py-4 font-mono text-slate-500">{item.code_postal}</td>
+                                            <td className="px-6 py-4 font-bold text-slate-700">{item.nom}</td>
+                                            <td className="px-6 py-4 text-slate-500">{item.wilaya_id}</td>
+                                        </>
+                                    )}
+                                    {activeTab === 'desks' && (
+                                        <>
+                                            <td className="px-6 py-4 font-mono text-slate-500">{item.code}</td>
+                                            <td className="px-6 py-4 font-bold text-slate-700">{item.name}</td>
+                                            <td className="px-6 py-4 text-xs text-slate-500 max-w-xs">{item.address}</td>
+                                            <td className="px-6 py-4 text-xs text-slate-500">{formatPhones(item.phones)}</td>
+                                            <td className="px-6 py-4">
+                                                {item.map && (
+                                                    <a
+                                                        href={item.map}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs font-medium"
+                                                    >
+                                                        <MapPin className="w-4 h-4" /> Voir
+                                                    </a>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-2">
+                                                    {item.map && (
+                                                        <button
+                                                            onClick={() => handleCopy(item.map, "Lien Map")}
+                                                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                                            title="Copier le lien Google Maps"
+                                                        >
+                                                            <Map className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => handleCopy(item.address, "Adresse")}
+                                                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                                        title="Copier l'adresse"
+                                                    >
+                                                        <Copy className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </>
+                                    )}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* Mobile Cards View */}
+                <div className="md:hidden grid grid-cols-1 gap-4 p-4">
+                    {filteredData.map((item, index) => (
+                        <div key={item.id || item.code || index} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 space-y-3">
+                            {activeTab === 'wilayas' && (
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600">
+                                            {item.code}
+                                        </div>
+                                        <span className="font-bold text-slate-800">{item.nom}</span>
+                                    </div>
+                                    <div>
+                                        {item.is_active ?
+                                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">Actif</span>
+                                            : <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">Inactif</span>
+                                        }
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeTab === 'communes' && (
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex items-center justify-between">
+                                        <span className="font-bold text-slate-800">{item.nom}</span>
+                                        <span className="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-1 rounded">{item.code_postal}</span>
+                                    </div>
+                                    <div className="text-xs text-slate-500">
+                                        Wilaya ID: <span className="font-medium text-slate-700">{item.wilaya_id}</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeTab === 'desks' && (
+                                <div className="flex flex-col gap-3">
+                                    <div className="flex items-start justify-between">
+                                        <div>
+                                            <div className="font-bold text-slate-800">{item.name}</div>
+                                            <div className="text-xs text-slate-500 font-mono">Code: {item.code}</div>
+                                        </div>
+                                        {item.map && (
+                                            <a
+                                                href={item.map}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="p-2 bg-blue-50 text-blue-600 rounded-lg"
+                                            >
+                                                <MapPin className="w-4 h-4" />
+                                            </a>
+                                        )}
+                                    </div>
+
+                                    <div className="bg-slate-50 p-3 rounded-lg text-sm space-y-2">
+                                        <div className="text-slate-600">{item.address}</div>
+                                        <div className="text-slate-500 text-xs flex items-center gap-1">
+                                            <Truck className="w-3 h-3" /> {formatPhones(item.phones)}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                                        {item.map && (
+                                            <button
+                                                onClick={() => handleCopy(item.map, "Lien Map")}
+                                                className="flex-1 flex items-center justify-center gap-2 py-2 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                                            >
+                                                <Map className="w-3 h-3" /> Copier Map
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={() => handleCopy(item.address, "Adresse")}
+                                            className="flex-1 flex items-center justify-center gap-2 py-2 text-xs font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                                        >
+                                            <Copy className="w-3 h-3" /> Copier Adresse
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </>
         );
     };
 
