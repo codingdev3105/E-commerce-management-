@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getNoestWilayas, getNoestCommunes, getNoestDesks } from '../services/api';
+import { getNoestWilayas, getNoestCommunes, getNoestDesks, getNoestFees } from '../services/api';
 import { MapPin, Building, Truck, Search, Map, Copy } from 'lucide-react';
 import { useUI } from '../context/UIContext';
 import { useAppData } from '../context/AppDataContext';
@@ -7,18 +7,18 @@ import { useAppData } from '../context/AppDataContext';
 function LocationsPage() {
     const [activeTab, setActiveTab] = useState('wilayas');
     const [data, setData] = useState([]);
+    const [fees, setFees] = useState({});
     const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const { toast } = useUI();
-    const { wilayas: sheetWilayas } = useAppData();
+    const { wilayas: allWilayas } = useAppData();
 
     const handleCopy = (text, label) => {
         if (!text) return;
         navigator.clipboard.writeText(text);
         toast.success(`${label} copié !`);
     };
-
-    const [allWilayas, setAllWilayas] = useState([]);
+ 
 
     useEffect(() => {
         setSearchTerm(''); // Reset search on tab change
@@ -30,13 +30,19 @@ function LocationsPage() {
         try {
             let result = [];
             if (activeTab === 'wilayas') {
-                result = await getNoestWilayas();
-                setAllWilayas(result); // Keep them for lookup too
+                const [wilayasData, feesData] = await Promise.all([
+                    getNoestWilayas(),
+                    getNoestFees()
+                ]);
+                result = wilayasData;
+                // We use 'delivery' fees for the main view as columns are "Livraison"
+                setFees(feesData?.tarifs?.delivery || {});
+                // setAllWilayas(result); // Keep them for lookup too
             } else if (activeTab === 'communes') {
                 // We need wilayas for search by name, fetch them if needed
                 if (allWilayas.length === 0) {
                     const w = await getNoestWilayas();
-                    setAllWilayas(Array.isArray(w) ? w : Object.values(w));
+                    // setAllWilayas(Array.isArray(w) ? w : Object.values(w));
                 }
                 result = await getNoestCommunes();
             } else if (activeTab === 'desks') {
@@ -50,7 +56,6 @@ function LocationsPage() {
                 result = [];
             }
 
-            console.log(result);
             setData(result);
         } catch (error) {
             console.error("Error fetching locations data", error);
@@ -150,16 +155,20 @@ function LocationsPage() {
                             {filteredData.map((item, index) => (
                                 <tr key={item.id || item.code || index} className="hover:bg-blue-50/30 transition-colors">
                                     {activeTab === 'wilayas' && (() => {
-                                        const wilayaData = sheetWilayas?.find(w => String(w.code) === String(item.code));
+                                        // Use API fees if available, otherwise fallback might not be needed if we trust the API
+                                        const feeInfo = fees[item.code];
+                                        const domPrice = feeInfo?.tarif;
+                                        const stopPrice = feeInfo?.tarif_stopdesk;
+
                                         return (
                                             <>
                                                 <td className="px-6 py-4 font-mono text-slate-500">{item.code}</td>
                                                 <td className="px-6 py-4 font-bold text-slate-700">{item.nom}</td>
                                                 <td className="px-6 py-4 font-medium text-slate-600">
-                                                    {wilayaData?.delivery_price ? `${wilayaData.delivery_price} DA` : '-'}
+                                                    {domPrice ? `${domPrice} DA` : '-'}
                                                 </td>
                                                 <td className="px-6 py-4 font-medium text-slate-600">
-                                                    {wilayaData?.delivery_price_desk ? `${wilayaData.delivery_price_desk} DA` : '-'}
+                                                    {stopPrice ? `${stopPrice} DA` : '-'}
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     {item.is_active ?

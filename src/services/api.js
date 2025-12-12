@@ -96,4 +96,10 @@ export const getNoestWilayas = async () => {
     return response.data;
 };
 
+export const getNoestFees = async (wilayaId) => {
+    const params = wilayaId ? { wilaya_id: wilayaId } : {};
+    const response = await api.get('/noest/fees', { params });
+    return response.data;
+};
+
 export default api;

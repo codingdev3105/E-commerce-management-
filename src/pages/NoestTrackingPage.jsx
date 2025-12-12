@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { getOrders, getNoestTrackingInfo } from '../services/api';
-import { Search, RefreshCw, Truck, MapPin, User, Calendar, X, History, Phone } from 'lucide-react';
+import { Search, RefreshCw, Truck, MapPin, User, Calendar, X, History, Phone, Home } from 'lucide-react';
 import { useUI } from '../context/UIContext';
+import { useAppData } from '../context/AppDataContext';
 
 function NoestTrackingPage() {
     const [orders, setOrders] = useState([]);
@@ -9,10 +10,11 @@ function NoestTrackingPage() {
     const [filterText, setFilterText] = useState('');
     const [selectedOrder, setSelectedOrder] = useState(null);
     const { toast } = useUI();
+    const { wilayas } = useAppData();
 
     useEffect(() => {
         fetchNoestData();
-    }, []);
+    }, [wilayas]); // Re-run if wilayas load
 
     const fetchNoestData = async () => {
         setLoading(true);
@@ -32,28 +34,75 @@ function NoestTrackingPage() {
             const result = await getNoestTrackingInfo(systemTrackings);
             console.log('result', result);
 
+            const parseCustomDate = (dateStr) => {
+                if (!dateStr) return new Date(0);
+
+                // Clean up possible microseconds/timezone mess unique to some APIs
+                // e.g. "2025-01-15 14:30:56.000000Z" -> "2025-01-15T14:30:56"
+                let cleanStr = dateStr;
+                if (dateStr.includes('.000000Z')) {
+                    cleanStr = dateStr.replace(' ', 'T').replace('.000000Z', 'Z');
+                }
+
+                const d = new Date(cleanStr);
+                if (!isNaN(d.getTime())) return d;
+
+                // Try DD-MM-YYYY or DD/MM/YYYY
+                const parts = dateStr.match(/^(\d{2})[-/](\d{2})[-/](\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?/);
+                if (parts) {
+                    return new Date(
+                        parseInt(parts[3], 10),
+                        parseInt(parts[2], 10) - 1,
+                        parseInt(parts[1], 10),
+                        parseInt(parts[4] || 0, 10),
+                        parseInt(parts[5] || 0, 10),
+                        parseInt(parts[6] || 0, 10)
+                    );
+                }
+                return new Date(0);
+            };
+
+            const formatDate = (dateObj) => {
+                if (!dateObj || isNaN(dateObj.getTime()) || dateObj.getTime() === 0) return '-';
+                const pad = (n) => n.toString().padStart(2, '0');
+                return `${pad(dateObj.getDate())}-${pad(dateObj.getMonth() + 1)}-${dateObj.getFullYear()} ${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}`;
+            };
+
             const noestData = Object.values(result).map(item => {
                 const info = item.OrderInfo || {};
                 const activities = item.activity || [];
                 const deliveryAttempts = item.deliveryAttempts || [];
-                const sortedActivities = [...activities].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                const sortedActivities = activities.map(act => ({
+                    ...act,
+                    parsedDate: parseCustomDate(act.date)
+                })).sort((a, b) => b.parsedDate - a.parsedDate);
+
                 const latest = sortedActivities[0] || {};
+                const wilayaName = wilayas.find(w => w.code == info.wilaya_id)?.nom || '';
 
                 return {
                     tracking: info.tracking,
                     reference: info.reference,
                     client: info.client,
                     phone: info.phone,
-                    wilaya: `Wilaya ${info.wilaya_id}`,
+                    wilaya_id: info.wilaya_id,
+                    wilaya_name: wilayaName,
                     commune: info.commune,
+                    adresse: info.adresse,
                     montant: info.montant,
-                    created_at: info.created_at,
-                    status: latest.event || 'En attente',
+                    created_at: formatDate(parseCustomDate(info.created_at)),
+                    status: latest.event || info.current_status || 'En attente',
                     status_class: latest['badge-class'],
-                    activities: sortedActivities,
+                    activities: sortedActivities.map(a => ({
+                        ...a,
+                        date: formatDate(a.parsedDate)
+                    })),
                     deliveryAttempts: deliveryAttempts,
                     driver_name: info.driver_name,
-                    driver_phone: info.driver_phone
+                    driver_phone: info.driver_phone,
+                    produit: info.produit,
+                    is_stopdesk: Number(info.stop_desk) === 1
                 };
             });
 
@@ -73,7 +122,7 @@ function NoestTrackingPage() {
             (order.tracking?.toLowerCase() || '').includes(text) ||
             (order.client?.toLowerCase() || '').includes(text) ||
             (order.phone?.toLowerCase() || '').includes(text) ||
-            (order.wilaya?.toLowerCase() || '').includes(text)
+            (order.wilaya_name?.toLowerCase() || '').includes(text)
         );
     });
 
@@ -93,48 +142,10 @@ function NoestTrackingPage() {
         return 'bg-gray-100 text-gray-700 border border-gray-200';
     };
 
-    // --- CATEGORIZATION LOGIC ---
-    const TABS = [
-        { id: 'all', label: 'Tous', count: 0 },
-        { id: 'uploade', label: 'infos reçues', count: 0 },
-        { id: 'valide', label: 'Validé', count: 0 },
-        { id: 'vers_hub', label: 'Vers Hub', count: 0 }, // validation_reception, expedition
-        { id: 'en_hub', label: 'En Hub', count: 0 }, // reception
-        { id: 'en_livraison', label: 'En Livraison', count: 0 }, // sortie_livraison
-        { id: 'suspendu', label: 'Suspendu', count: 0 }, // mise_a_jour (tentative)
-        { id: 'livre', label: 'Livré', count: 0 },
-        { id: 'retour', label: 'Retour', count: 0 },
-    ];
-
     const [activeTab, setActiveTab] = useState('all');
 
-    const getCategory = (order) => {
-        const latest = order.activities && order.activities.length > 0 ? order.activities[0] : null;
-        if (!latest) return 'uploade'; // Default
-
-        const key = (latest.event_key || '').toLowerCase();
-        const eventText = (latest.event || '').toLowerCase();
-
-        if (key.includes('livre') || key === 'delivered') return 'livre';
-        if (key.includes('retour') || key.includes('echoue') || eventText.includes('retour')) return 'retour';
-
-        // Suspendu logic: mise_a_jour often means 'Tentative', or specific failure events
-        if (key === 'mise_a_jour' || eventText.includes('tentative') || eventText.includes('report')) return 'suspendu';
-
-        if (key === 'sortie_livraison' || eventText.includes('cours de livraison')) return 'en_livraison';
-
-        // Hub logic
-        if (key === 'reception' || key === 'entree_hub' || eventText.includes('hub') || eventText.includes('centre')) return 'en_hub';
-
-        // Vers Hub (Moving)
-        if (key === 'validation_reception' || key === 'expedition' || eventText.includes('enlevé') || eventText.includes('transfert')) return 'vers_hub';
-
-        if (key === 'customer_validation' || eventText.includes('validé')) return 'valide';
-
-        if (key === 'upload') return 'uploade';
-
-        return 'uploade'; // Fallback
-    };
+    // Get all unique statuses from the orders
+    const availableStatuses = ['all', ...new Set(orders.map(o => o.status || 'En attente'))];
 
     const categorizedOrders = () => {
         const filtered = orders.filter(order => {
@@ -144,24 +155,44 @@ function NoestTrackingPage() {
                 (order.tracking?.toLowerCase() || '').includes(text) ||
                 (order.client?.toLowerCase() || '').includes(text) ||
                 (order.phone?.toLowerCase() || '').includes(text) ||
-                (order.wilaya?.toLowerCase() || '').includes(text)
+                (order.wilaya_name?.toLowerCase() || '').includes(text)
             );
         });
 
         if (activeTab === 'all') return filtered;
 
-        return filtered.filter(order => getCategory(order) === activeTab);
+        return filtered.filter(order => (order.status || 'En attente') === activeTab);
     };
 
     // Calculate counts for tabs
     const tabCounts = orders.reduce((acc, order) => {
-        const cat = getCategory(order);
-        acc[cat] = (acc[cat] || 0) + 1;
+        const s = order.status || 'En attente';
+        acc[s] = (acc[s] || 0) + 1;
         acc.all = (acc.all || 0) + 1;
         return acc;
     }, { all: 0 });
 
+    const visibleTabs = availableStatuses.map(status => ({
+        id: status,
+        label: status === 'all' ? 'Tous' : status,
+        count: tabCounts[status] || 0
+    }));
+
+    // Sort tabs: 'all' first, then alphabetical or by count
+    visibleTabs.sort((a, b) => {
+        if (a.id === 'all') return -1;
+        if (b.id === 'all') return 1;
+        return a.label.localeCompare(b.label);
+    });
+
     const displayedOrders = categorizedOrders();
+
+    // If active tab disappears (becomes empty), switch to 'all'
+    useEffect(() => {
+        if (activeTab !== 'all' && (tabCounts[activeTab] || 0) === 0 && !loading && orders.length > 0) {
+            setActiveTab('all');
+        }
+    }, [tabCounts, activeTab, loading, orders.length]);
 
     return (
         <section className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden min-h-[600px] flex flex-col">
@@ -193,7 +224,7 @@ function NoestTrackingPage() {
             {/* TABS SCROLLABLE */}
             <div className="border-b border-slate-100 bg-slate-50/50">
                 <div className="flex overflow-x-auto hide-scrollbar px-4 gap-1">
-                    {TABS.map(tab => {
+                    {visibleTabs.map(tab => {
                         const count = tabCounts[tab.id] || 0;
                         const isActive = activeTab === tab.id;
                         return (
@@ -227,9 +258,10 @@ function NoestTrackingPage() {
                             <tr className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                                 <th className="px-6 py-4">Tracking & Ref</th>
                                 <th className="px-6 py-4">Client</th>
-                                <th className="px-6 py-4">Destination</th>
+                                <th className="px-6 py-4">Produit & Montant</th>
+                                <th className="px-6 py-4">Localisation</th>
+                                <th className="px-6 py-4">Type</th>
                                 <th className="px-6 py-4 text-center">État Détails</th>
-                                <th className="px-6 py-4 text-right">Montant</th>
                                 <th className="px-6 py-4">Date MAJ</th>
                                 <th className="px-6 py-4 text-center">Actions</th>
                             </tr>
@@ -237,7 +269,7 @@ function NoestTrackingPage() {
                         <tbody className="divide-y divide-slate-100 bg-white">
                             {loading ? (
                                 <tr>
-                                    <td colSpan="7" className="px-6 py-20 text-center">
+                                    <td colSpan="8" className="px-6 py-20 text-center">
                                         <div className="flex flex-col items-center gap-2">
                                             <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                                             <span className="text-slate-400 text-sm">Chargement...</span>
@@ -245,7 +277,7 @@ function NoestTrackingPage() {
                                     </td>
                                 </tr>
                             ) : displayedOrders.length === 0 ? (
-                                <tr><td colSpan="7" className="px-6 py-12 text-center text-slate-400">Aucune commande dans cet onglet.</td></tr>
+                                <tr><td colSpan="8" className="px-6 py-12 text-center text-slate-400">Aucune commande dans cet onglet.</td></tr>
                             ) : (
                                 displayedOrders.map((o, idx) => (
                                     <tr key={o.tracking || idx} className="hover:bg-slate-50/80 transition-colors group">
@@ -271,26 +303,46 @@ function NoestTrackingPage() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2">
-                                                <MapPin className="w-4 h-4 text-slate-400" />
-                                                <div>
-                                                    <div className="text-sm text-slate-700 font-medium">{o.wilaya || '-'}</div>
-                                                    <div className="text-xs text-slate-400">{o.commune || '-'}</div>
+                                            <div className="flex flex-col gap-1">
+                                                <div className="text-sm text-slate-700 max-w-[200px]" title={o.produit}>
+                                                    <strong>{o.produit || <span className="text-slate-400 italic">Non spécifié</span>}</strong>
                                                 </div>
+                                                {o.montant && (
+                                                    <div className="text-sm font-bold text-blue-600 bg-blue-50 inline-block px-2 py-0.5 rounded border border-blue-100 w-fit">
+                                                        {o.montant} DA
+                                                    </div>
+                                                )}
                                             </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-col text-sm">
+                                                <div className="font-medium text-slate-700 flex items-center gap-1">
+                                                    <MapPin className="w-3 h-3 text-slate-400" />
+                                                    {o.wilaya_name} <span className="text-slate-500 font-normal">({o.wilaya_id})</span>
+                                                </div>
+                                                {o.commune && <div className="text-xs text-slate-500 pl-4">{o.commune}</div>}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {o.is_stopdesk ? (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
+                                                    <Truck className="w-3 h-3" /> Stop Desk
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                                                    <Home className="w-3 h-3" /> Domicile
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 text-center">
                                             <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold uppercase shadow-sm ${getStatusColor(o)}`}>
                                                 {o.status || 'En attente'}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="font-bold text-slate-700">{o.montant} <span className="text-xs font-normal text-slate-400">DA</span></div>
-                                        </td>
                                         <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2 text-slate-500 text-xs">
+                                            <div className="flex items-center gap-2 text-slate-500 text-xs text-nowrap">
                                                 <Calendar className="w-3 h-3" />
-                                                {o.activities && o.activities.length > 0 ? o.activities[0].date : '-'}
+                                                {o.created_at || (o.activities && o.activities.length > 0 ? o.activities[0].date : '-')}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-center">
@@ -342,9 +394,9 @@ function NoestTrackingPage() {
                                             </div>
                                             <div className="h-px bg-slate-200 w-full"></div>
                                             <div className="flex justify-between items-center">
-                                                <div className="flex items-center gap-2 text-sm text-slate-600">
-                                                    <MapPin className="w-4 h-4 text-slate-400" />
-                                                    {o.wilaya || '-'}
+                                                <div className="flex flex-col text-sm text-slate-600">
+                                                    <span className="flex items-center gap-2"><MapPin className="w-4 h-4 text-slate-400" />{o.wilaya_name} {o.wilaya_id}</span>
+                                                    <span className="text-xs pl-6">{o.commune}</span>
                                                 </div>
                                                 <div className="font-bold text-slate-800">{o.montant} DA</div>
                                             </div>

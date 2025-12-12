@@ -22,17 +22,12 @@ export const StatesProvider = ({ children }) => {
     const fetchStates = async () => {
         try {
             const role = localStorage.getItem('role');
-            const result = await getValidationRules('A');
-
-            console.log(`📋 Règles de validation pour la colonne A`);
-            console.log(`📄 Feuille: ${role}!A`);
-            console.log('Règles de validation:', result);
+            const result = await getValidationRules('A'); 
 
             // Extract states from validation rules
             if (result?.validationRules?.condition?.values) {
                 const states = result.validationRules.condition.values.map(v => v.userEnteredValue);
-                setAvailableStates(states);
-                console.log('✅ États disponibles extraits:', states);
+                setAvailableStates(states); 
             }
         } catch (error) {
             console.error("Failed to fetch validation rules", error);
