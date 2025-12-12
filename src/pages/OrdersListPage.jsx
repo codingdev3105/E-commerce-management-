@@ -633,7 +633,7 @@ function OrdersListPage() {
                         </div>
 
                         {paginatedOrders.map((order) => (
-                            <div key={order.rowId} className={`bg - white rounded - xl border border - slate - 200 shadow - sm overflow - hidden ${selectedOrders.includes(order.rowId) ? 'ring-2 ring-blue-500 border-transparent' : ''} `}>
+                            <div key={order.rowId} className={`bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden ${selectedOrders.includes(order.rowId) ? 'ring-2 ring-blue-500 border-transparent' : ''} `}>
                                 <div className="p-4 space-y-4">
                                     {/* Header: Checkbox + Ref + Date + Status + Amount */}
                                     <div className="flex items-start justify-between">
@@ -651,7 +651,7 @@ function OrdersListPage() {
                                             </div>
                                         </div>
                                         <div className="flex flex-col items-end gap-1">
-                                            <span className={`inline - flex items - center px - 2.5 py - 1 rounded - full text - xs font - bold ${getStateColor(order.state)} `}>
+                                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${getStateColor(order.state)} `}>
                                                 {order.state}
                                             </span>
                                         </div>
@@ -706,7 +706,7 @@ function OrdersListPage() {
 
                                         <div className="flex items-center gap-2">
                                             <button
-                                                onClick={() => navigate(`/ commandes / details / ${order.rowId} `)}
+                                                onClick={() => navigate(`/commandes/details/${order.rowId}`)}
                                                 className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-slate-100"
                                                 title="Voir les détails"
                                             >
@@ -714,9 +714,9 @@ function OrdersListPage() {
                                             </button>
 
                                             <button
-                                                onClick={() => navigate(`/ modifier / ${order.rowId} `)}
+                                                onClick={() => navigate(`/commandes/modifier/${order.rowId}`)}
                                                 disabled={order.state.includes('System')}
-                                                className={`p - 2 rounded - lg transition - colors border border - slate - 100 ${order.state.includes('System')
+                                                className={`p-2 rounded-lg transition-colors border border-slate-100 ${order.state.includes('System')
                                                     ? 'text-slate-200 cursor-not-allowed'
                                                     : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50'
                                                     } `}
@@ -727,7 +727,7 @@ function OrdersListPage() {
                                             <button
                                                 onClick={() => handleSendToNoest(order.rowId, order.reference)}
                                                 disabled={order.state !== 'Atelier'}
-                                                className={`p - 2 rounded - lg transition - colors border border - slate - 100 ${order.state === 'Atelier'
+                                                className={`p-2 rounded-lg transition-colors border border-slate-100 ${order.state === 'Atelier'
                                                     ? 'text-slate-400 hover:text-green-600 hover:bg-green-50'
                                                     : 'text-slate-200 cursor-not-allowed'
                                                     } `}
@@ -738,7 +738,7 @@ function OrdersListPage() {
                                             <button
                                                 onClick={() => handleDelete(order.rowId, order.reference)}
                                                 disabled={order.state.includes('System')}
-                                                className={`p - 2 rounded - lg transition - colors border border - slate - 100 ${order.state.includes('System')
+                                                className={`p-2 rounded-lg transition-colors border border-slate-100 ${order.state.includes('System')
                                                     ? 'text-slate-200 cursor-not-allowed'
                                                     : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
                                                     } `}

@@ -155,6 +155,7 @@ function NoestTrackingPage() {
                 (order.tracking?.toLowerCase() || '').includes(text) ||
                 (order.client?.toLowerCase() || '').includes(text) ||
                 (order.phone?.toLowerCase() || '').includes(text) ||
+                (order.created_at?.toLowerCase() || '').includes(text) ||
                 (order.wilaya_name?.toLowerCase() || '').includes(text)
             );
         });
