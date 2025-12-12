@@ -18,7 +18,7 @@ function LocationsPage() {
         navigator.clipboard.writeText(text);
         toast.success(`${label} copié !`);
     };
- 
+
 
     useEffect(() => {
         setSearchTerm(''); // Reset search on tab change
@@ -236,22 +236,41 @@ function LocationsPage() {
                 <div className="md:hidden grid grid-cols-1 gap-4 p-4">
                     {filteredData.map((item, index) => (
                         <div key={item.id || item.code || index} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 space-y-3">
-                            {activeTab === 'wilayas' && (
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600">
-                                            {item.code}
+                            {activeTab === 'wilayas' && (() => {
+                                const feeInfo = fees[item.code];
+                                const domPrice = feeInfo?.tarif;
+                                const stopPrice = feeInfo?.tarif_stopdesk;
+
+                                return (
+                                    <>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600">
+                                                    {item.code}
+                                                </div>
+                                                <span className="font-bold text-slate-800">{item.nom}</span>
+                                            </div>
+                                            <div>
+                                                {item.is_active ?
+                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">Actif</span>
+                                                    : <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">Inactif</span>
+                                                }
+                                            </div>
                                         </div>
-                                        <span className="font-bold text-slate-800">{item.nom}</span>
-                                    </div>
-                                    <div>
-                                        {item.is_active ?
-                                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">Actif</span>
-                                            : <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">Inactif</span>
-                                        }
-                                    </div>
-                                </div>
-                            )}
+
+                                        <div className="grid grid-cols-2 gap-3 pt-2">
+                                            <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                                                <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Domicile</div>
+                                                <div className="font-bold text-slate-700">{domPrice ? `${domPrice} DA` : '-'}</div>
+                                            </div>
+                                            <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                                                <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">Stop Desk</div>
+                                                <div className="font-bold text-slate-700">{stopPrice ? `${stopPrice} DA` : '-'}</div>
+                                            </div>
+                                        </div>
+                                    </>
+                                );
+                            })()}
 
                             {activeTab === 'communes' && (
                                 <div className="flex flex-col gap-2">
