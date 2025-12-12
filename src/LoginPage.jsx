@@ -2,12 +2,16 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login } from './services/api';
 import { KeyRound, Loader2, ShieldCheck } from 'lucide-react';
+import { useAppData } from './context/AppDataContext';
+import { useStates } from './context/StatesContext';
 
 function LoginPage() {
     const [code, setCode] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+    const { refreshData } = useAppData();
+    const { refreshStates } = useStates();
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -19,6 +23,10 @@ function LoginPage() {
             console.log(data);
             localStorage.setItem('token', data.token);
             localStorage.setItem('role', data.role);
+
+            // Refresh global data now that we have a token
+            await Promise.all([refreshData(), refreshStates()]);
+
             navigate('/statistique');
         } catch (err) {
             console.error(err);

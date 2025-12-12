@@ -86,7 +86,7 @@ function App() {
                 <Route path="/commandes" element={<OrdersListPage />} />
                 <Route path="/statistique" element={<StatisticsPage />} />
                 <Route path="/commandes/details/:id" element={<OrderDetailsPage />} />
-                <Route path="/modifier/:id" element={<EditOrderPage />} />
+                <Route path="/commandes/modifier/:id" element={<EditOrderPage />} />
                 <Route path="/noest-express-service" element={<NoestTrackingPage />} />
                 <Route path="/locations" element={<LocationsPage />} />
               </Route>

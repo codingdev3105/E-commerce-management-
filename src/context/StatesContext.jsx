@@ -20,14 +20,20 @@ export const StatesProvider = ({ children }) => {
     }, []);
 
     const fetchStates = async () => {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            setLoading(false);
+            return;
+        }
+
         try {
             const role = localStorage.getItem('role');
-            const result = await getValidationRules('A'); 
+            const result = await getValidationRules('A');
 
             // Extract states from validation rules
             if (result?.validationRules?.condition?.values) {
                 const states = result.validationRules.condition.values.map(v => v.userEnteredValue);
-                setAvailableStates(states); 
+                setAvailableStates(states);
             }
         } catch (error) {
             console.error("Failed to fetch validation rules", error);

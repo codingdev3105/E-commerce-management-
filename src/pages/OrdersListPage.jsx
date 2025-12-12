@@ -560,7 +560,7 @@ function OrdersListPage() {
                                     <td className="px-6 py-4 text-center">
                                         <div className="flex items-center justify-center gap-2">
                                             <button
-                                                onClick={() => navigate(`/ commandes / details / ${order.rowId} `)}
+                                                onClick={() => navigate(`/commandes/details/${order.rowId}`)}
                                                 className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                                 title="Voir les détails"
                                             >
@@ -568,12 +568,12 @@ function OrdersListPage() {
                                             </button>
 
                                             <button
-                                                onClick={() => navigate(`/ modifier / ${order.rowId} `)}
+                                                onClick={() => navigate(`/commandes/modifier/${order.rowId}`)}
                                                 disabled={order.state.includes('System')}
-                                                className={`p - 2 rounded - lg transition - colors ${order.state.includes('System')
+                                                className={`p-2 rounded-lg transition-colors ${order.state.includes('System')
                                                     ? 'text-slate-200 cursor-not-allowed'
                                                     : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50'
-                                                    } `}
+                                                    }`}
                                                 title={order.state.includes('System') ? "Modification interdite (System)" : "Modifier"}
                                             >
                                                 <Pencil className="w-4 h-4" />
@@ -582,10 +582,10 @@ function OrdersListPage() {
                                             <button
                                                 onClick={() => handleSendToNoest(order.rowId, order.reference)}
                                                 disabled={order.state !== 'Atelier'}
-                                                className={`p - 2 rounded - lg transition - colors ${order.state === 'Atelier'
+                                                className={`p-2 rounded-lg transition-colors ${order.state === 'Atelier'
                                                     ? 'text-slate-400 hover:text-green-600 hover:bg-green-50'
                                                     : 'text-slate-200 cursor-not-allowed'
-                                                    } `}
+                                                    }`}
                                                 title={order.state === 'Atelier' ? "Envoyer vers Noest" : "Envoi disponible uniquement en 'Atelier'"}
                                             >
                                                 <Send className="w-4 h-4" />
@@ -594,10 +594,10 @@ function OrdersListPage() {
                                             <button
                                                 onClick={() => handleDelete(order.rowId, order.reference)}
                                                 disabled={order.state.includes('System')}
-                                                className={`p - 2 rounded - lg transition - colors ${order.state.includes('System')
+                                                className={`p-2 rounded-lg transition-colors ${order.state.includes('System')
                                                     ? 'text-slate-200 cursor-not-allowed'
                                                     : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
-                                                    } `}
+                                                    }`}
                                                 title={order.state.includes('System') ? "Suppression interdite (System)" : "Supprimer"}
                                             >
                                                 <Trash2 className="w-4 h-4" />
