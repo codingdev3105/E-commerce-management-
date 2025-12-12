@@ -57,7 +57,13 @@ function AddOrderPage() {
             }
             if (name === 'stationCode') {
                 const station = stations.find(s => s.code === val);
-                updated.stationName = station ? station.name : '';
+                if (station) {
+                    // Extract name inside « » if present (e.g. Alger « Centre » -> Centre), otherwise use full name
+                    const match = station.name.match(/«\s*(.*?)\s*»/);
+                    updated.stationName = match ? match[1] : station.name;
+                } else {
+                    updated.stationName = '';
+                }
             }
             return updated;
         });
