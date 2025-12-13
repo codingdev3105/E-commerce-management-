@@ -465,23 +465,23 @@ function OrdersListPage() {
             <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left">
                     <thead>
-                        <tr className="bg-slate-50/50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                            <th className="px-6 py-4 w-10">
+                        <tr className="bg-slate-50/50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                            <th className="px-3 py-3 w-8 text-center">
                                 <input
                                     type="checkbox"
                                     checked={filteredOrders.length > 0 && filteredOrders.every(o => selectedOrders.includes(o.rowId))}
                                     onChange={toggleSelectAll}
-                                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
                                 />
                             </th>
-                            <th className="px-6 py-4">Ref & Date</th>
-                            <th className="px-6 py-4">Client</th>
-                            <th className="px-6 py-4">Produit</th>
-                            <th className="px-6 py-4">Localisation</th>
-                            <th className="px-6 py-4">Type</th>
-                            <th className="px-6 py-4 text-right">Montant</th>
-                            <th className="px-6 py-4 text-center">État</th>
-                            <th className="px-6 py-4 text-center">Actions</th>
+                            <th className="px-3 py-3">Ref & Date</th>
+                            <th className="px-3 py-3">Client</th>
+                            <th className="px-3 py-3">Produit</th>
+                            <th className="px-3 py-3">Localisation</th>
+                            <th className="px-3 py-3">Type</th>
+                            <th className="px-3 py-3 text-right">Montant</th>
+                            <th className="px-3 py-3 text-center">État</th>
+                            <th className="px-3 py-3 text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -495,112 +495,106 @@ function OrdersListPage() {
                             </tr>
                         ) : (
                             paginatedOrders.map((order) => (
-                                <tr key={order.rowId} className={`hover: bg - blue - 50 / 30 transition - colors group ${selectedOrders.includes(order.rowId) ? 'bg-blue-50/50' : ''} `}>
-                                    <td className="px-6 py-4">
+                                <tr key={order.rowId} className={`hover:bg-blue-50/30 transition-colors group ${selectedOrders.includes(order.rowId) ? 'bg-blue-50/50' : ''}`}>
+                                    <td className="px-3 py-2 text-center">
                                         <input
                                             type="checkbox"
                                             checked={selectedOrders.includes(order.rowId)}
                                             onChange={(e) => toggleSelectRow(order.rowId, e)}
-                                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
                                         />
                                     </td>
-                                    <td className="px-6 py-4">
-                                        <div className="font-bold text-slate-800 text-sm">{order.reference}</div>
-                                        <div className="text-xs text-slate-400 font-mono mt-0.5">{order.date}</div>
+                                    <td className="px-3 py-2">
+                                        <div className="font-bold text-slate-800 text-xs">{order.reference}</div>
+                                        <div className="text-[10px] text-slate-400 font-mono leading-tight">{order.date}</div>
                                     </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs">
+                                    <td className="px-3 py-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-[10px]">
                                                 {order.client?.charAt(0)}
                                             </div>
                                             <div>
-                                                <div className="text-sm font-medium text-slate-700">{order.client}</div>
-                                                <div className="text-xs text-slate-400">{order.phone}</div>
+                                                <div className="text-xs font-bold text-slate-700 truncate max-w-[120px]" title={order.client}>{order.client}</div>
+                                                <div className="text-[10px] text-slate-400 leading-tight">{order.phone}</div>
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4">
-                                        <div className="text-sm text-slate-700 max-w-[200px] whitespace-normal break-words" title={typeof order.product === 'string' ? order.product : ''}>
-                                            <strong>{order.product || <span className="text-slate-400 italic">Non spécifié</span>}</strong>
+                                    <td className="px-3 py-2">
+                                        <div className="text-xs text-slate-700 min-w-[200px] whitespace-normal" title={typeof order.product === 'string' ? order.product : ''}>
+                                            <span className="font-medium">{order.product || <span className="text-slate-400 italic">Non spécifié</span>}</span>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex flex-col text-sm">
-                                            <span className="font-medium text-slate-700">{wilayas.find(w => w.code == order.wilaya)?.nom || ''} {order.wilaya}</span>
-                                            {order.commune && <span className="text-slate-500 text-xs">{order.commune}</span>}
-                                            {order.address && <span className="text-slate-400 text-xs truncate max-w-[150px]" title={order.address}>{order.address}</span>}
+                                    <td className="px-3 py-2">
+                                        <div className="flex flex-col text-[11px] leading-tight">
+                                            <span className="font-medium text-slate-700 truncate max-w-[120px]">{wilayas.find(w => w.code == order.wilaya)?.nom || ''} {order.wilaya}</span>
+                                            {order.commune && <span className="text-slate-500 text-[10px]">{order.commune}</span>}
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex flex-col gap-1 items-start">
+                                    <td className="px-3 py-2">
+                                        <div className="flex flex-col gap-0.5 items-start">
                                             {order.isStopDesk ? (
-                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
-                                                    <Truck className="w-3 h-3" /> Stop Desk
+                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                                                    <Truck className="w-3 h-3" /> Stop
                                                 </span>
                                             ) : (
-                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
-                                                    <Home className="w-3 h-3" /> Domicile
-                                                </span>
-                                            )}
-                                            {order.isExchange && (
-                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200">
-                                                    <RefreshCw className="w-3 h-3" /> Échange
+                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-50 text-slate-600 border border-slate-100">
+                                                    <Home className="w-3 h-3" /> Dom
                                                 </span>
                                             )}
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <div className="text-sm font-bold text-slate-800">{order.amount} <span className="text-xs font-normal text-slate-500">DA</span></div>
+                                    <td className="px-3 py-2 text-right">
+                                        <div className="text-xs font-bold text-slate-800 whitespace-nowrap">{order.amount} <span className="text-[10px] font-normal text-slate-500">DA</span></div>
                                     </td>
-                                    <td className="px-6 py-4 text-center">
-                                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold shadow-sm ${getStateColor(order.state)}`}>
+                                    <td className="px-3 py-2 text-center">
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold shadow-sm border ${getStateColor(order.state)}`}>
                                             {order.state}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-center">
-                                        <div className="flex items-center justify-center gap-2">
+                                    <td className="px-3 py-2 text-center">
+                                        <div className="flex items-center justify-center gap-1">
                                             <button
                                                 onClick={() => navigate(`/commandes/details/${order.rowId}`)}
-                                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                title="Voir les détails"
+                                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                                title="Détails"
                                             >
-                                                <Eye className="w-4 h-4" />
+                                                <Eye className="w-3.5 h-3.5" />
                                             </button>
 
                                             <button
                                                 onClick={() => navigate(`/commandes/modifier/${order.rowId}`)}
                                                 disabled={order.state.includes('System')}
-                                                className={`p-2 rounded-lg transition-colors ${order.state.includes('System')
+                                                className={`p-1.5 rounded transition-colors ${order.state.includes('System')
                                                     ? 'text-slate-200 cursor-not-allowed'
                                                     : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50'
                                                     }`}
-                                                title={order.state.includes('System') ? "Modification interdite (System)" : "Modifier"}
+                                                title="Modifier"
                                             >
-                                                <Pencil className="w-4 h-4" />
+                                                <Pencil className="w-3.5 h-3.5" />
                                             </button>
 
                                             <button
                                                 onClick={() => handleSendToNoest(order.rowId, order.reference)}
                                                 disabled={order.state !== 'Atelier'}
-                                                className={`p-2 rounded-lg transition-colors ${order.state === 'Atelier'
+                                                className={`p-1.5 rounded transition-colors ${order.state === 'Atelier'
                                                     ? 'text-slate-400 hover:text-green-600 hover:bg-green-50'
                                                     : 'text-slate-200 cursor-not-allowed'
                                                     }`}
-                                                title={order.state === 'Atelier' ? "Envoyer vers Noest" : "Envoi disponible uniquement en 'Atelier'"}
+                                                title="Envoyer"
                                             >
-                                                <Send className="w-4 h-4" />
+                                                <Send className="w-3.5 h-3.5" />
                                             </button>
 
                                             <button
                                                 onClick={() => handleDelete(order.rowId, order.reference)}
                                                 disabled={order.state.includes('System')}
-                                                className={`p-2 rounded-lg transition-colors ${order.state.includes('System')
+                                                className={`p-1.5 rounded transition-colors ${order.state.includes('System')
                                                     ? 'text-slate-200 cursor-not-allowed'
                                                     : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
                                                     }`}
-                                                title={order.state.includes('System') ? "Suppression interdite (System)" : "Supprimer"}
+                                                title="Supprimer"
                                             >
-                                                <Trash2 className="w-4 h-4" />
+                                                <Trash2 className="w-3.5 h-3.5" />
                                             </button>
                                         </div>
                                     </td>
@@ -751,11 +745,12 @@ function OrdersListPage() {
                             </div>
                         ))}
                     </div>
-                )}
-            </div>
+                )
+                }
+            </div >
 
             {/* Pagination Controls */}
-            <div className="px-6 py-4 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4 bg-slate-50/50">
+            < div className="px-6 py-4 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4 bg-slate-50/50" >
                 <div className="text-sm text-slate-500">
                     Affichage de {Math.min(filteredOrders.length, (currentPage - 1) * itemsPerPage + 1)} à {Math.min(filteredOrders.length, currentPage * itemsPerPage)} sur {filteredOrders.length}
                 </div>
@@ -800,7 +795,7 @@ function OrdersListPage() {
                         </button>
                     </div>
                 </div>
-            </div>
+            </div >
         </section >
     );
 }
