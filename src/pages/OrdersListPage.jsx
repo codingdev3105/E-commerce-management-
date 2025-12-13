@@ -271,6 +271,18 @@ function OrdersListPage() {
         const currentState = distinctStates[0];
         const targetState = bulkState;
 
+        // 1. Interdire la modification si la commande est déjà envoyée (System / Envoyer)
+        if (currentState && (currentState.includes('System') || currentState.includes('Envoyer'))) {
+            toast.error("Modification refusée : Cette commande est déjà envoyée (System).");
+            return;
+        }
+
+        // 2. Interdire le passage MANUEL vers l'état 'Envoyer' ou 'System'
+        if (targetState && (targetState.includes('System') || targetState.includes('Envoyer'))) {
+            toast.error("Action refusée : Pour envoyer une commande, utilisez le bouton 'Envoyer' (Avion).");
+            return;
+        }
+
 
 
         const confirmed = await confirm({
