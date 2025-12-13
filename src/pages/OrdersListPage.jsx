@@ -258,35 +258,7 @@ function OrdersListPage() {
         const currentState = distinctStates[0];
         const targetState = bulkState;
 
-        let isAllowed = false;
-        const isStandardState = (s) => s.includes('Nouvelle') || s.includes('Atelier');
-        const isSystemState = (s) => s.includes('System') || s.includes('Envoyer');
-        const isCancelledState = (s) => s.includes('Annuler');
 
-        if (isSystemState(currentState)) {
-            if (targetState === 'Annuler') {
-                isAllowed = true;
-            } else {
-                toast.error("Action refusée : Les commandes 'System' ne peuvent être changées qu'en 'Annuler'.");
-                return;
-            }
-        } else if (isCancelledState(currentState)) {
-            if (targetState === 'Nouvelle') {
-                isAllowed = true;
-            } else {
-                toast.error("Action refusée : Les commandes annulées ne peuvent être rétablies qu'en 'Nouvelle'.");
-                return;
-            }
-        } else if (isStandardState(currentState)) {
-            isAllowed = true;
-        } else {
-            isAllowed = false;
-        }
-
-        if (!isAllowed) {
-            toast.error("Transition d'état non autorisée.");
-            return;
-        }
 
         const confirmed = await confirm({
             title: "Confirmation de mise à jour",
@@ -575,12 +547,12 @@ function OrdersListPage() {
 
                                             <button
                                                 onClick={() => handleSendToNoest(order.rowId, order.reference)}
-                                                disabled={order.state !== 'Atelier'}
-                                                className={`p-1.5 rounded transition-colors ${order.state === 'Atelier'
+                                                disabled={order.state && order.state.includes('System')}
+                                                className={`p-1.5 rounded transition-colors ${!(order.state && order.state.includes('System'))
                                                     ? 'text-slate-400 hover:text-green-600 hover:bg-green-50'
-                                                    : 'text-slate-200 cursor-not-allowed'
+                                                    : 'text-slate-200 cursor-not-allowed hidden'
                                                     }`}
-                                                title="Envoyer"
+                                                title="Envoyer vers Noest"
                                             >
                                                 <Send className="w-3.5 h-3.5" />
                                             </button>
@@ -720,10 +692,10 @@ function OrdersListPage() {
 
                                             <button
                                                 onClick={() => handleSendToNoest(order.rowId, order.reference)}
-                                                disabled={order.state !== 'Atelier'}
-                                                className={`p-2 rounded-lg transition-colors border border-slate-100 ${order.state === 'Atelier'
+                                                disabled={order.state && order.state.includes('System')}
+                                                className={`p-2 rounded-lg transition-colors border border-slate-100 ${!(order.state && order.state.includes('System'))
                                                     ? 'text-slate-400 hover:text-green-600 hover:bg-green-50'
-                                                    : 'text-slate-200 cursor-not-allowed'
+                                                    : 'text-slate-200 cursor-not-allowed hidden'
                                                     } `}
                                             >
                                                 <Send className="w-4 h-4" />
