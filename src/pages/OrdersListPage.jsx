@@ -8,6 +8,9 @@ import { useStates } from '../context/StatesContext';
 import { exportToPDF } from '../services/exportService';
 import { getNoestWilayas, getNoestCommunes, getNoestDesks } from '../services/api';
 
+import OrderDetailsPage from './OrderDetailsPage';
+import EditOrderPage from './EditOrderPage';
+
 function OrdersListPage() {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -18,13 +21,23 @@ function OrdersListPage() {
     const { wilayas } = useAppData();
     const { availableStates } = useStates();
 
+    // View Navigation State (Internal)
+    const [viewMode, setViewMode] = useState('list'); // 'list', 'details', 'edit'
+    const [currentOrderId, setCurrentOrderId] = useState(null);
+
     const [selectedOrders, setSelectedOrders] = useState([]);
     const [bulkState, setBulkState] = useState('');
     const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
     // Pagination State
-    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [itemsPerPage, setItemsPerPage] = useState(30);
     const [currentPage, setCurrentPage] = useState(1);
+
+    const handleBackToList = () => {
+        setViewMode('list');
+        setCurrentOrderId(null);
+        fetchOrders(); // Refresh data to show changes
+    };
 
     useEffect(() => {
         fetchOrders();
@@ -305,6 +318,14 @@ function OrdersListPage() {
         return 'bg-gray-100 text-gray-700 border border-gray-200';
     };
 
+    if (viewMode === 'details' && currentOrderId) {
+        return <OrderDetailsPage orderId={currentOrderId} onBack={handleBackToList} />;
+    }
+
+    if (viewMode === 'edit' && currentOrderId) {
+        return <EditOrderPage orderId={currentOrderId} onBack={handleBackToList} />;
+    }
+
     return (
         <section className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
             <div className="px-8 py-6 border-b border-slate-100 flex flex-col gap-4">
@@ -323,8 +344,7 @@ function OrdersListPage() {
                                 className="border-slate-200 rounded-lg text-sm py-2 px-2 focus:ring-blue-500 focus:border-blue-500 bg-slate-50 w-full md:w-auto"
                                 title="Lignes par page"
                             >
-                                <option value={10}>10</option>
-                                <option value={20}>20</option>
+                                <option value={30}>30</option>
                                 <option value={50}>50</option>
                                 <option value={100}>100</option>
                                 <option value={filteredOrders.length}>ALL</option>
@@ -526,7 +546,7 @@ function OrdersListPage() {
                                     <td className="px-3 py-2 text-center">
                                         <div className="flex items-center justify-center gap-1">
                                             <button
-                                                onClick={() => navigate(`/commandes/details/${order.rowId}`)}
+                                                onClick={() => { setCurrentOrderId(order.rowId); setViewMode('details'); }}
                                                 className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                                                 title="Détails"
                                             >
@@ -534,7 +554,7 @@ function OrdersListPage() {
                                             </button>
 
                                             <button
-                                                onClick={() => navigate(`/commandes/modifier/${order.rowId}`)}
+                                                onClick={() => { setCurrentOrderId(order.rowId); setViewMode('edit'); }}
                                                 disabled={order.state.includes('System')}
                                                 className={`p-1.5 rounded transition-colors ${order.state.includes('System')
                                                     ? 'text-slate-200 cursor-not-allowed'
@@ -672,7 +692,7 @@ function OrdersListPage() {
 
                                         <div className="flex items-center gap-2">
                                             <button
-                                                onClick={() => navigate(`/commandes/details/${order.rowId}`)}
+                                                onClick={() => { setCurrentOrderId(order.rowId); setViewMode('details'); }}
                                                 className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-slate-100"
                                                 title="Voir les détails"
                                             >
@@ -680,7 +700,7 @@ function OrdersListPage() {
                                             </button>
 
                                             <button
-                                                onClick={() => navigate(`/commandes/modifier/${order.rowId}`)}
+                                                onClick={() => { setCurrentOrderId(order.rowId); setViewMode('edit'); }}
                                                 disabled={order.state.includes('System')}
                                                 className={`p-2 rounded-lg transition-colors border border-slate-100 ${order.state.includes('System')
                                                     ? 'text-slate-200 cursor-not-allowed'

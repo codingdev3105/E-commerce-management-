@@ -4,8 +4,9 @@ import { getOrders } from '../services/api';
 import { ArrowLeft, Package, User, Phone, MapPin, Calendar, DollarSign, Truck, FileText, Info } from 'lucide-react';
 import { useAppData } from '../context/AppDataContext';
 
-function OrderDetailsPage() {
-    const { id } = useParams(); // This is currently the Reference (e.g. REF-001)
+function OrderDetailsPage({ orderId, onBack }) {
+    const params = useParams();
+    const id = orderId || params.id; // Support both prop and route param
     const navigate = useNavigate();
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -13,14 +14,12 @@ function OrderDetailsPage() {
 
     useEffect(() => {
         const fetchOrder = async () => {
+            if (!id) return; // Wait for ID
             try {
                 // Fetch all and find (Temporary solution until backend supports GET /:id)
                 const orders = await getOrders();
                 // Find by Reference
                 const found = orders.find(o => o.rowId === Number(id));
-                console.log('id : ', typeof (id));
-                console.log('orders : ', orders);
-                console.log('found : ', found);
                 setOrder(found);
             } catch (err) {
                 console.error("Failed to fetch order", err);
@@ -37,7 +36,7 @@ function OrderDetailsPage() {
         return (
             <div className="p-8 text-center">
                 <p className="text-slate-500 mb-4">Commande introuvable.</p>
-                <button onClick={() => navigate('/commandes')} className="text-blue-600 hover:underline">Retour à la liste</button>
+                <button onClick={onBack || (() => navigate('/commandes'))} className="text-blue-600 hover:underline">Retour à la liste</button>
             </div>
         );
     }
@@ -45,10 +44,9 @@ function OrderDetailsPage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            {/* Header */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-4">
                 <div className="flex items-start gap-4">
-                    <button onClick={() => navigate('/commandes')} className="p-2 hover:bg-slate-50 rounded-lg transition-colors text-slate-400 hover:text-slate-700 -ml-2">
+                    <button onClick={onBack || (() => navigate('/commandes'))} className="p-2 hover:bg-slate-50 rounded-lg transition-colors text-slate-400 hover:text-slate-700 -ml-2">
                         <ArrowLeft className="w-5 h-5" />
                     </button>
                     <div>

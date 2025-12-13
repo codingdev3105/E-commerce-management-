@@ -6,8 +6,9 @@ import { useUI } from '../context/UIContext';
 import { useAppData } from '../context/AppDataContext';
 import { useStates } from '../context/StatesContext';
 
-function EditOrderPage() {
-    const { id } = useParams();
+function EditOrderPage({ orderId, onBack }) {
+    const params = useParams();
+    const id = orderId || params.id;
     const navigate = useNavigate();
     const { toast } = useUI();
     const { wilayas, communes, desks: stations, loading: loadingRef } = useAppData();
@@ -34,7 +35,7 @@ function EditOrderPage() {
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
-        fetchOrderDetails();
+        if (id) fetchOrderDetails();
     }, [id]);
 
     const fetchOrderDetails = async () => {
@@ -62,7 +63,8 @@ function EditOrderPage() {
                 });
             } else {
                 toast.error("Commande introuvable");
-                navigate('/commandes');
+                if (onBack) onBack();
+                else navigate('/commandes');
             }
         } catch (error) {
             console.error("Failed to fetch order details", error);
@@ -147,7 +149,8 @@ function EditOrderPage() {
         try {
             await updateOrder(id, orderData);
             toast.success("Commande modifiée avec succès !");
-            navigate('/commandes');
+            if (onBack) onBack();
+            else navigate('/commandes');
         } catch (error) {
             console.error("Failed to update order", error);
             toast.error("Erreur lors de la modification");
@@ -164,7 +167,7 @@ function EditOrderPage() {
         <section className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
             <div className="bg-slate-50/50 px-8 py-5 border-b border-slate-100 flex justify-between items-center">
                 <div className="flex items-center gap-4">
-                    <button onClick={() => navigate('/commandes')} className="p-2 hover:bg-white rounded-lg transition-colors text-slate-400 hover:text-slate-700">
+                    <button onClick={onBack || (() => navigate('/commandes'))} className="p-2 hover:bg-white rounded-lg transition-colors text-slate-400 hover:text-slate-700">
                         <ArrowLeft className="w-5 h-5" />
                     </button>
                     <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
