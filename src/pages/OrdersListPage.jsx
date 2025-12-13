@@ -321,6 +321,58 @@ function OrdersListPage() {
         }
     };
 
+    const handleBulkSendToNoest = async () => {
+        const selectedOrderObjects = orders.filter(o => selectedOrders.includes(o.rowId));
+        if (selectedOrderObjects.length === 0) return;
+
+        // Filter valid orders: Not already sent
+        const validOrders = selectedOrderObjects.filter(o => {
+            const s = (o.state || '');
+            return !s.includes('System') && !s.includes('Envoyer');
+        });
+
+        if (validOrders.length === 0) {
+            toast.error("Aucune commande éligible à l'envoi (déjà envoyées).");
+            return;
+        }
+
+        const confirmed = await confirm({
+            title: "Envoi groupé vers Noest",
+            message: `Voulez-vous envoyer ${validOrders.length} commande(s) vers Noest Express ?`,
+            type: "confirm",
+            confirmText: "Oui, envoyer tout",
+        });
+
+        if (!confirmed) return;
+
+        setIsBulkUpdating(true);
+        let successCount = 0;
+        let failCount = 0;
+
+        try {
+            const results = await Promise.allSettled(
+                validOrders.map(o => sendToNoest(o.rowId))
+            );
+
+            results.forEach(res => {
+                if (res.status === 'fulfilled') successCount++;
+                else failCount++;
+            });
+
+            if (successCount > 0) toast.success(`${successCount} commandes envoyées avec succès !`);
+            if (failCount > 0) toast.error(`${failCount} échecs d'envoi.`);
+
+            setSelectedOrders([]);
+            fetchOrders();
+
+        } catch (error) {
+            console.error("Bulk send failed", error);
+            toast.error("Erreur lors de l'envoi groupé");
+        } finally {
+            setIsBulkUpdating(false);
+        }
+    };
+
     const getStateColor = (state) => {
         const s = (state || '');
         if (s.includes('Nouvelle')) return 'bg-blue-100 text-blue-700 border border-blue-200';
@@ -448,6 +500,16 @@ function OrdersListPage() {
                             className="w-full md:w-auto px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
                         >
                             {isBulkUpdating ? '...' : 'Appliquer'}
+                        </button>
+
+                        <button
+                            onClick={handleBulkSendToNoest}
+                            disabled={isBulkUpdating}
+                            className="w-full md:w-auto px-4 py-2 bg-green-600 text-white text-sm font-bold rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                            title="Envoyer la sélection vers Noest"
+                        >
+                            <Send className="w-4 h-4" />
+                            {isBulkUpdating ? '...' : 'Envoyer vers Noest'}
                         </button>
 
                         <div className="h-6 w-px bg-blue-200 mx-1 hidden md:block"></div>

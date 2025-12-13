@@ -76,6 +76,7 @@ export const sendToNoest = async (rowId) => {
 
 export const getNoestTrackingInfo = async (trackingsArray) => {
     const response = await api.post('/noest/trackings', { trackingsArray });
+    console.log(response.data);
     return response.data;
 };
 

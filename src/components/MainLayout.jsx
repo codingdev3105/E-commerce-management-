@@ -19,7 +19,7 @@ function MainLayout() {
 
             {/* Navbar / Header */}
             <header className="bg-white/80 backdrop-blur-md sticky top-0 z-30 border-b border-slate-200">
-                <div className="max-w-[95%] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                <div className="max-w-[98%] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold uppercase">
                             {role.charAt(0)}
@@ -58,7 +58,7 @@ function MainLayout() {
                 </div>
             </header>
 
-            <main className="max-w-[95%] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+            <main className="max-w-[98%] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
                 <Outlet />
             </main>
 

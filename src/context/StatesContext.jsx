@@ -28,8 +28,7 @@ export const StatesProvider = ({ children }) => {
 
         try {
             const role = localStorage.getItem('role');
-            const result = await getValidationRules('A');
-            console.log(result);
+            const result = await getValidationRules('A'); 
             // Extract states from validation rules
             if (result?.validationRules?.condition?.values) {
                 const states = result.validationRules.condition.values.map(v => v.userEnteredValue);

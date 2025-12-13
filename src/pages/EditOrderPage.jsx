@@ -5,6 +5,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useUI } from '../context/UIContext';
 import { useAppData } from '../context/AppDataContext';
 import { useStates } from '../context/StatesContext';
+import Combobox from '../components/Combobox';
 
 function EditOrderPage({ orderId, onBack }) {
     const params = useParams();
@@ -91,6 +92,11 @@ function EditOrderPage({ orderId, onBack }) {
     const isFreelyEditable = !isSystem && !isCancelled;
     const canEditFields = isFreelyEditable;
     const canEditState = isFreelyEditable || isCancelled || isSystem;
+
+    // Helpers for Combobox updates
+    const updateField = (name, value) => {
+        handleInputChange({ target: { name, value, type: 'text' } }); // Mock event for existing handler
+    };
 
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -289,41 +295,59 @@ function EditOrderPage({ orderId, onBack }) {
                     </div>
 
                     {/* Wilaya */}
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Wilaya</label>
-                        <select required name="wilaya" value={orderData.wilaya} onChange={handleInputChange} disabled={!canEditFields}
-                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none disabled:opacity-60 disabled:cursor-not-allowed">
-                            <option value="">Sélectionner...</option>
-                            {wilayas.map(w => (
-                                <option key={w.code} value={w.code}>{w.code} - {w.nom}</option>
-                            ))}
-                        </select>
+                    <div className={`space-y-1.5 ${orderData.isStopDesk ? 'lg:col-span-2' : 'lg:col-span-1'}`}>
+                        <Combobox
+                            label="Wilaya"
+                            options={wilayas.map(w => ({ value: w.code, label: `${w.code} - ${w.nom}` }))}
+                            value={orderData.wilaya}
+                            onChange={(val) => updateField('wilaya', val)}
+                            disabled={!canEditFields}
+                            placeholder="Sélectionner..."
+                        />
                     </div>
 
-                    {/* Commune & Address (if not Stop Desk) */}
-                    {!orderData.isStopDesk && (
-                        <>
+                    {/* Commune OR Stop Desk Station */}
+                    <div className={orderData.isStopDesk ? 'lg:col-span-2' : 'lg:col-span-1'}>
+                        {!orderData.isStopDesk ? (
                             <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Commune</label>
-                                <select required name="commune" value={orderData.commune} onChange={handleInputChange} disabled={!canEditFields || !orderData.wilaya}
-                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed">
-                                    <option value="">{orderData.commune || 'Sélectionner...'}</option>
-                                    {availableCommunes.map((c, idx) => (
-                                        <option key={idx} value={c.nom}>{c.nom}</option>
-                                    ))}
+                                <Combobox
+                                    label="Commune"
+                                    options={availableCommunes.map(c => ({ value: c.nom, label: c.nom }))}
+                                    value={orderData.commune}
+                                    onChange={(val) => updateField('commune', val)}
+                                    disabled={!canEditFields || !orderData.wilaya}
+                                    placeholder="Sélectionner..."
+                                />
+                            </div>
+                        ) : (
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1"><Truck className="w-3 h-3" /> Bureau Stop Desk</label>
+                                <select required name="stationCode" value={orderData.stationCode} onChange={handleInputChange} disabled={!canEditFields || !orderData.wilaya}
+                                    className="w-full px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none font-medium">
+                                    <option value="">Choisir une station...</option>
+                                    {availableStations.length > 0 ? (
+                                        availableStations.map((s, idx) => (
+                                            <option key={idx} value={s.code}>{s.code} - {s.name}</option>
+                                        ))
+                                    ) : (
+                                        <option disabled>Aucune station trouvée</option>
+                                    )}
                                 </select>
                             </div>
+                        )}
+                    </div>
 
-                            <div className="lg:col-span-2 space-y-1.5">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Adresse</label>
-                                <div className="relative">
-                                    <MapPin className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                                    <input required type="text" name="address" value={orderData.address} onChange={handleInputChange} disabled={!canEditFields}
-                                        className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                                        placeholder="Adresse de livraison" />
-                                </div>
+                    {/* Address (Only for Domicile) */}
+                    {!orderData.isStopDesk && (
+                        <div className="lg:col-span-2 space-y-1.5">
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Adresse</label>
+                            <div className="relative">
+                                <MapPin className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                <input required type="text" name="address" value={orderData.address} onChange={handleInputChange} disabled={!canEditFields}
+                                    className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                                    placeholder="Adresse de livraison" />
                             </div>
-                        </>
+                        </div>
                     )}
 
                     {/* Amount */}
@@ -364,25 +388,6 @@ function EditOrderPage({ orderId, onBack }) {
                             <span className="text-sm font-medium text-slate-700">Stop Desk</span>
                         </label>
                     </div>
-
-                    {/* Stop Desk Station */}
-                    {orderData.isStopDesk && (
-                        <div className="lg:col-span-4 bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center gap-4">
-                            <div className="bg-blue-200 p-2 rounded-lg text-blue-700">
-                                <Truck className="w-5 h-5" />
-                            </div>
-                            <div className="flex-1">
-                                <label className="block text-xs font-bold text-blue-700 uppercase mb-1">Bureau Stop Desk ({orderData.wilaya ? `${wilayas.find(w => w.code == orderData.wilaya)?.nom || ''} ${orderData.wilaya}` : '...'})</label>
-                                <select required name="stationCode" value={orderData.stationCode} onChange={handleInputChange} disabled={!canEditFields}
-                                    className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm text-blue-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-60 disabled:cursor-not-allowed">
-                                    <option value="">{orderData.stationCode ? orderData.stationCode : 'Choisir une station...'}</option>
-                                    {availableStations.map((s, idx) => (
-                                        <option key={idx} value={s.code}>{s.code} - {s.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-                    )}
 
                     {/* Submit */}
                     <div className="lg:col-span-4 pt-2">

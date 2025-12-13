@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
-import { createOrder } from '../services/api';
+import { useState, useMemo, useEffect } from 'react';
+import { createOrder, getOrders } from '../services/api';
 import { Plus, MapPin, Phone, User, Package, DollarSign, Truck } from 'lucide-react';
 import { useUI } from '../context/UIContext';
 import { useAppData } from '../context/AppDataContext';
+import Combobox from '../components/Combobox';
 
 function AddOrderPage() {
     const { toast } = useUI();
@@ -12,6 +13,7 @@ function AddOrderPage() {
         reference: '',
         client: '',
         phone: '',
+        phone2: '',
         address: '',
         wilaya: '',
         commune: '',
@@ -24,6 +26,41 @@ function AddOrderPage() {
         isExchange: false,
     });
     const [submitting, setSubmitting] = useState(false);
+
+    useEffect(() => {
+        const fetchLastReference = async () => {
+            try {
+                const orders = await getOrders();
+                if (orders && orders.length > 0) {
+                    // Assuming the latest order is at the end
+                    const lastOrder = orders[orders.length - 1];
+                    const lastRef = lastOrder.reference || '';
+
+                    // Try to extract number
+                    const match = lastRef.match(/(\d+)$/);
+                    if (match) {
+                        const numberPart = match[1];
+                        const prefix = lastRef.substring(0, match.index);
+                        const nextNumber = parseInt(numberPart, 10) + 1;
+                        // Keep same padding
+                        const paddedNumber = nextNumber.toString().padStart(numberPart.length, '0');
+                        setNewOrder(prev => ({ ...prev, reference: `${prefix}${paddedNumber}` }));
+                    } else {
+                        // Fallback
+                        setNewOrder(prev => ({ ...prev, reference: `${lastRef}-1` }));
+                    }
+                } else {
+                    // Default start
+                    setNewOrder(prev => ({ ...prev, reference: '0001' }));
+                }
+            } catch (error) {
+                console.error("Failed to fetch orders for reference generation", error);
+            }
+        };
+
+        fetchLastReference();
+    }, []);
+
 
     const availableCommunes = useMemo(() => {
         if (!newOrder.wilaya) return [];
@@ -38,12 +75,18 @@ function AddOrderPage() {
         return stations.filter(s => s.code.toString().startsWith(newOrder.wilaya.toString()));
     }, [newOrder.wilaya, stations]);
 
+    // Helpers for Combobox updates
+    const updateField = (name, value) => {
+        handleInputChange({ target: { name, value, type: 'text' } }); // Mock event for existing handler
+    };
+
+
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
         const val = type === 'checkbox' ? checked : value;
 
         // Phone validation: only numbers, max 10 digits
-        if (name === 'phone') {
+        if (name === 'phone' || name === 'phone2') {
             if (!/^\d*$/.test(val)) return;
             if (val.length > 10) return;
         }
@@ -75,20 +118,49 @@ function AddOrderPage() {
         try {
             await createOrder(newOrder);
             toast.success('Commande ajoutée avec succès !');
-            setNewOrder({
-                reference: '',
-                client: '',
-                phone: '',
-                address: '',
-                wilaya: '',
-                commune: '',
-                amount: '',
-                product: '',
-                note: '',
-                isStopDesk: false,
-                stationCode: '',
-                stationName: '',
-                isExchange: false,
+            setNewOrder(prev => {
+                // Calculate next reference from the one just submitted
+                const lastRef = prev.reference;
+                let nextRef = '';
+                const match = lastRef.match(/(\d+)$/);
+                if (match) {
+                    const numberPart = match[1];
+                    const prefix = lastRef.substring(0, match.index);
+                    const nextNumber = parseInt(numberPart, 10) + 1;
+                    nextRef = `${prefix}${nextNumber.toString().padStart(numberPart.length, '0')}`;
+                } else {
+                    nextRef = `${lastRef}-1`;
+                }
+
+                return {
+                    reference: nextRef,
+                    client: '',
+                    phone: '',
+                    address: '',
+                    wilaya: '',
+                    commune: '',
+                    amount: '',
+                    product: '',
+                    note: '',
+                    isStopDesk: false,
+                    stationCode: '',
+                    stationName: '',
+                    isExchange: false,
+                    reference: nextRef,
+                    client: '',
+                    phone: '',
+                    phone2: '',
+                    address: '',
+                    wilaya: '',
+                    commune: '',
+                    amount: '',
+                    product: '',
+                    note: '',
+                    isStopDesk: false,
+                    stationCode: '',
+                    stationName: '',
+                    isExchange: false,
+                };
             });
         } catch (error) {
             console.error('Failed to create order', error);
@@ -118,15 +190,8 @@ function AddOrderPage() {
             <div className="p-8">
                 <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {/* Reference */}
-                    <div className="lg:col-span-1 space-y-1.5">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Référence</label>
-                        <div className="relative">
-                            <Package className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                            <input required type="text" name="reference" value={newOrder.reference} onChange={handleInputChange}
-                                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-medium"
-                                placeholder="CMD-..." />
-                        </div>
-                    </div>
+
+                    {/* Client */}
                     {/* Client */}
                     <div className="lg:col-span-2 space-y-1.5">
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Client</label>
@@ -137,9 +202,9 @@ function AddOrderPage() {
                                 placeholder="Nom complet" />
                         </div>
                     </div>
-                    {/* Phone */}
+                    {/* Phone 1 */}
                     <div className="lg:col-span-1 space-y-1.5">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Téléphone</label>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Téléphone 1</label>
                         <div className="relative">
                             <Phone className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                             <input required type="text" name="phone" value={newOrder.phone} onChange={handleInputChange}
@@ -147,44 +212,82 @@ function AddOrderPage() {
                                 placeholder="05..." />
                         </div>
                     </div>
-                    {/* Wilaya */}
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Wilaya</label>
-                        <select required name="wilaya" value={newOrder.wilaya} onChange={handleInputChange}
-                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none">
-                            <option value="">Sélectionner...</option>
-                            {wilayas.map(w => (
-                                <option key={w.code} value={w.code}>{w.code} - {w.nom}</option>
-                            ))}
-                        </select>
+                    {/* Phone 2 */}
+                    <div className="lg:col-span-1 space-y-1.5">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Téléphone 2 (Opt)</label>
+                        <div className="relative">
+                            <Phone className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                            <input type="text" name="phone2" value={newOrder.phone2} onChange={handleInputChange}
+                                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-medium"
+                                placeholder="06..." />
+                        </div>
                     </div>
-                    {/* Commune & Address (if not Stop Desk) */}
-                    {!newOrder.isStopDesk && (
-                        <>
+                    {/* Wilaya */}
+                    <div className={`space-y-1.5 ${newOrder.isStopDesk ? 'lg:col-span-2' : 'lg:col-span-1'}`}>
+                        <Combobox
+                            label="Wilaya"
+                            options={wilayas.map(w => ({ value: w.code, label: `${w.code} - ${w.nom}` }))}
+                            value={newOrder.wilaya}
+                            onChange={(val) => updateField('wilaya', val)}
+                            placeholder="Sélectionner..."
+                        />
+                    </div>
+
+                    {/* Commune OR Stop Desk Station */}
+                    <div className={newOrder.isStopDesk ? 'lg:col-span-2' : 'lg:col-span-1'}>
+                        {!newOrder.isStopDesk ? (
                             <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Commune</label>
-                                <select required name="commune" value={newOrder.commune} onChange={handleInputChange} disabled={!newOrder.wilaya}
-                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50">
-                                    <option value="">Sélectionner...</option>
-                                    {availableCommunes.map((c, idx) => (
-                                        <option key={idx} value={c.nom}>{c.nom}</option>
-                                    ))}
+                                <Combobox
+                                    label="Commune"
+                                    options={availableCommunes.map(c => ({ value: c.nom, label: c.nom }))}
+                                    value={newOrder.commune}
+                                    onChange={(val) => updateField('commune', val)}
+                                    disabled={!newOrder.wilaya}
+                                    placeholder="Sélectionner..."
+                                />
+                            </div>
+                        ) : (
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1"><Truck className="w-3 h-3" /> Bureau Stop Desk</label>
+                                <select required name="stationCode" value={newOrder.stationCode} onChange={handleInputChange} disabled={!newOrder.wilaya}
+                                    className="w-full px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none font-medium">
+                                    <option value="">Choisir une station...</option>
+                                    {availableStations.length > 0 ? (
+                                        availableStations.map((s, idx) => (
+                                            <option key={idx} value={s.code}>{s.code} - {s.name}</option>
+                                        ))
+                                    ) : (
+                                        <option disabled>Aucune station trouvée</option>
+                                    )}
                                 </select>
                             </div>
-                            <div className="lg:col-span-2 space-y-1.5">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Adresse</label>
-                                <div className="relative">
-                                    <MapPin className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                                    <input required type="text" name="address" value={newOrder.address} onChange={handleInputChange}
-                                        className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                                        placeholder="Adresse de livraison" />
-                                </div>
+                        )}
+                    </div>
+
+                    {/* Address (Only for Domicile) */}
+                    {!newOrder.isStopDesk && (
+                        <div className="lg:col-span-2 space-y-1.5">
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Adresse</label>
+                            <div className="relative">
+                                <MapPin className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                                <input required type="text" name="address" value={newOrder.address} onChange={handleInputChange}
+                                    className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                                    placeholder="Adresse de livraison" />
                             </div>
-                        </>
+                        </div>
                     )}
+
+                    {/* Line 3: Product, Amount, Note, Button */}
+                    {/* Product */}
+                    <div className="lg:col-span-1 space-y-1.5">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Produit</label>
+                        <input required type="text" name="product" value={newOrder.product} onChange={handleInputChange}
+                            className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                            placeholder="Produit..." />
+                    </div>
                     {/* Amount */}
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Montant (DA)</label>
+                    <div className="lg:col-span-1 space-y-1.5">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Montant</label>
                         <div className="relative">
                             <DollarSign className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                             <input required type="number" name="amount" value={newOrder.amount} onChange={handleInputChange}
@@ -192,45 +295,18 @@ function AddOrderPage() {
                                 placeholder="0" />
                         </div>
                     </div>
-                    {/* Product */}
-                    <div className="lg:col-span-3 space-y-1.5">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Produit</label>
-                        <input required type="text" name="product" value={newOrder.product} onChange={handleInputChange}
-                            className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                            placeholder="Détails du produit..." />
-                    </div>
                     {/* Note */}
-                    <div className="lg:col-span-4 space-y-1.5">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Remarque (Optionnel)</label>
+                    <div className="lg:col-span-1 space-y-1.5">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Remarque</label>
                         <input type="text" name="note" value={newOrder.note} onChange={handleInputChange}
                             className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                            placeholder="Instructions de livraison, note particulière..." />
+                            placeholder="Note..." />
                     </div>
-                    {/* Stop Desk Station */}
-                    {newOrder.isStopDesk && (
-                        <div className="lg:col-span-4 bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center gap-4">
-                            <div className="bg-blue-200 p-2 rounded-lg text-blue-700"><Truck className="w-5 h-5" /></div>
-                            <div className="flex-1">
-                                <label className="block text-xs font-bold text-blue-700 uppercase mb-1">Bureau Stop Desk ({newOrder.wilaya ? `${wilayas.find(w => w.code == newOrder.wilaya)?.nom || ''} ${newOrder.wilaya}` : '...'})</label>
-                                <select required name="stationCode" value={newOrder.stationCode} onChange={handleInputChange}
-                                    className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm text-blue-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                    <option value="">Choisir une station...</option>
-                                    {availableStations.length > 0 ? (
-                                        availableStations.map((s, idx) => (
-                                            <option key={idx} value={s.code}>{s.code} - {s.name}</option>
-                                        ))
-                                    ) : (
-                                        <option disabled>Aucune station trouvée pour cette wilaya</option>
-                                    )}
-                                </select>
-                            </div>
-                        </div>
-                    )}
-                    {/* Submit */}
-                    <div className="lg:col-span-4 pt-2">
+                    {/* Submit Button */}
+                    <div className="lg:col-span-1 flex items-end">
                         <button type="submit" disabled={submitting || loadingRef}
-                            className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all transform active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                            {submitting ? 'Traitement en cours...' : <>CONFIRMER LA COMMANDE</>}
+                            className="w-full py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all transform active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 h-[42px]">
+                            {submitting ? '...' : <>CONFIRMER</>}
                         </button>
                     </div>
                 </form>
