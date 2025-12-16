@@ -47,7 +47,7 @@ function MainLayout() {
                                 <Truck className="w-4 h-4" /> Noest
                             </Link>
                             <Link to="/locations" className={`text-sm font-medium transition-colors flex items-center gap-1 ${isActive('/locations') ? 'text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}>
-                                <Map className="w-4 h-4" /> Couverture
+                                <Map className="w-4 h-4" /> Bureaux
                             </Link>
                         </nav>
 
@@ -97,7 +97,7 @@ function MainLayout() {
                         <div className={`p-1 rounded-full ${isActive('/locations') ? 'bg-blue-50' : ''}`}>
                             <Map className="w-6 h-6" />
                         </div>
-                        <span className="text-[10px] font-medium">Geo</span>
+                        <span className="text-[10px] font-medium">Bureaux</span>
                     </Link>
                 </nav>
             </div>

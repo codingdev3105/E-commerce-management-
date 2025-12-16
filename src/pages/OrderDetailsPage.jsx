@@ -82,9 +82,16 @@ function OrderDetailsPage({ orderId, onBack }) {
                             <div className="font-medium text-slate-800 text-lg">{order.client}</div>
                         </div>
                         <div>
-                            <div className="text-xs text-slate-400">Téléphone</div>
-                            <div className="font-medium text-slate-800 flex items-center gap-2">
-                                <Phone className="w-4 h-4 text-slate-400" /> {order.phone}
+                            <div className="text-xs text-slate-400">Téléphone{order.phone2 ? 's' : ''}</div>
+                            <div className="font-medium text-slate-800 flex flex-wrap items-center gap-2">
+                                <Phone className="w-4 h-4 text-slate-400 shrink-0" />
+                                <span>{order.phone}</span>
+                                {order.phone2 && (
+                                    <>
+                                        <span className="text-slate-400">-</span>
+                                        <span>{order.phone2}</span>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </div>

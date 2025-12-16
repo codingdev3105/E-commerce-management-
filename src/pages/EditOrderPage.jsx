@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { updateOrder, getOrders } from '../services/api';
-import { Save, MapPin, Phone, User, Package, DollarSign, Truck, ArrowLeft, Lock, AlertTriangle } from 'lucide-react';
+import { Save, MapPin, Phone, User, DollarSign, Truck, ArrowLeft, Lock, AlertTriangle } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useUI } from '../context/UIContext';
 import { useAppData } from '../context/AppDataContext';
@@ -21,6 +21,7 @@ function EditOrderPage({ orderId, onBack }) {
         reference: '',
         client: '',
         phone: '',
+        phone2: '',
         address: '',
         wilaya: '',
         commune: '',
@@ -49,6 +50,7 @@ function EditOrderPage({ orderId, onBack }) {
                     reference: order.reference,
                     client: order.client,
                     phone: order.phone,
+                    phone2: order.phone2 || '',
                     address: order.address,
                     wilaya: order.wilaya,
                     commune: order.isStopDesk ? '' : (order.commune || ''),
@@ -103,7 +105,7 @@ function EditOrderPage({ orderId, onBack }) {
         const val = type === 'checkbox' ? checked : value;
 
         // Phone validation: only numbers, max 10 digits
-        if (name === 'phone' && canEditFields) {
+        if ((name === 'phone' || name === 'phone2') && canEditFields) {
             if (!/^\d*$/.test(val)) return;
             if (val.length > 10) return;
         }
@@ -261,17 +263,6 @@ function EditOrderPage({ orderId, onBack }) {
                         </div>
                     </div>
 
-                    {/* Reference */}
-                    <div className="lg:col-span-1 space-y-1.5">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Référence</label>
-                        <div className="relative">
-                            <Package className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                            <input required type="text" name="reference" value={orderData.reference} onChange={handleInputChange} disabled={!canEditFields}
-                                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-medium disabled:opacity-60 disabled:cursor-not-allowed"
-                                placeholder="CMD-..." />
-                        </div>
-                    </div>
-
                     {/* Client */}
                     <div className="lg:col-span-2 space-y-1.5">
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Client</label>
@@ -283,14 +274,25 @@ function EditOrderPage({ orderId, onBack }) {
                         </div>
                     </div>
 
-                    {/* Phone */}
+                    {/* Phone 1 */}
                     <div className="lg:col-span-1 space-y-1.5">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Téléphone</label>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Téléphone 1</label>
                         <div className="relative">
                             <Phone className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                             <input required type="text" name="phone" value={orderData.phone} onChange={handleInputChange} disabled={!canEditFields}
                                 className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                                 placeholder="05..." />
+                        </div>
+                    </div>
+
+                    {/* Phone 2 */}
+                    <div className="lg:col-span-1 space-y-1.5">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Téléphone 2 (Opt)</label>
+                        <div className="relative">
+                            <Phone className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                            <input type="text" name="phone2" value={orderData.phone2} onChange={handleInputChange} disabled={!canEditFields}
+                                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                                placeholder="06..." />
                         </div>
                     </div>
 

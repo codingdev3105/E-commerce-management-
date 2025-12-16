@@ -177,6 +177,7 @@ function OrdersListPage() {
         const reference = (order.reference || "").toLowerCase();
         const client = (order.client || "").toLowerCase();
         const phone = (order.phone || "").toLowerCase();
+        const phone2 = (order.phone2 || "").toLowerCase();
         const state = (order.state || "").toLowerCase();
         const date = (order.date || "").toLowerCase();
         const address = (order.address || "").toLowerCase();
@@ -203,6 +204,7 @@ function OrdersListPage() {
             reference.includes(text) ||
             client.includes(text) ||
             phone.includes(text) ||
+            phone2.includes(text) ||
             state.includes(text) ||
             date.includes(text) ||
             address.includes(text) ||
@@ -581,7 +583,14 @@ function OrdersListPage() {
                                             </div>
                                             <div>
                                                 <div className="text-xs font-bold text-slate-700 truncate max-w-[120px]" title={order.client}>{order.client}</div>
-                                                <div className="text-[10px] text-slate-400 leading-tight">{order.phone}</div>
+                                                <div className="text-[10px] text-slate-400 leading-tight">
+                                                    {order.phone}
+                                                    {order.phone2 && (
+                                                        <>
+                                                            {' '}- {order.phone2}
+                                                        </>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </td>
@@ -727,7 +736,13 @@ function OrdersListPage() {
                                             <div>
                                                 <div className="font-bold text-slate-700">{order.client}</div>
                                                 <div className="text-sm text-slate-500 flex items-center gap-1">
-                                                    <Phone className="w-3 h-3" /> {order.phone}
+                                                    <Phone className="w-3 h-3" />
+                                                    {order.phone}
+                                                    {order.phone2 && (
+                                                        <>
+                                                            {' '}- {order.phone2}
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>

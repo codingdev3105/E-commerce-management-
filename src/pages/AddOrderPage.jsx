@@ -116,6 +116,7 @@ function AddOrderPage() {
         e.preventDefault();
         setSubmitting(true);
         try {
+            console.log('Submitting order:', newOrder);
             await createOrder(newOrder);
             toast.success('Commande ajoutée avec succès !');
             setNewOrder(prev => {
