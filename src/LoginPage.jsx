@@ -45,7 +45,7 @@ function LoginPage() {
                     <div className="mx-auto w-16 h-16 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm mb-4">
                         <ShieldCheck className="w-8 h-8 text-white" />
                     </div>
-                    <h1 className="text-2xl font-bold">Role Manager</h1>
+                    <h1 className="text-2xl font-bold">Yasmine Buisiness Manager</h1>
                     <p className="text-blue-100 text-sm mt-2">Accédez à votre espace E-commerce</p>
                 </div>
 
@@ -84,7 +84,7 @@ function LoginPage() {
                 </div>
 
                 <div className="bg-slate-50 p-4 text-center text-xs text-slate-400 border-t border-slate-100">
-                    Système de gestion YStore v1.2
+                    Système de gestion E-commerce
                 </div>
             </div>
         </div>
