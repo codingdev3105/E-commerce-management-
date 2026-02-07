@@ -109,6 +109,10 @@ function NoestTrackingPage() {
                 // Determine Category
                 const category = getCategoryFromEvent(latest.event_key, latest.event || info.current_status, isStopDesk);
 
+                // Find local order to get remark
+                const localOrder = sheetOrders.find(o => o.tracking === info.tracking);
+                const remarque = localOrder?.remarque || info.remarque || '';
+
                 return {
                     tracking: info.tracking,
                     reference: info.reference,
@@ -131,6 +135,7 @@ function NoestTrackingPage() {
                     driver_name: info.driver_name,
                     driver_phone: info.driver_phone,
                     produit: info.produit,
+                    remarque: remarque,
                     is_stopdesk: isStopDesk
                 };
             });
@@ -205,6 +210,36 @@ function NoestTrackingPage() {
         }
     }, [tabCounts, activeTab, loading, orders.length]);
 
+    // Column distribution logic
+    const [numColumns, setNumColumns] = useState(4);
+
+    useEffect(() => {
+        const handleResize = () => {
+            const width = window.innerWidth;
+            if (width < 640) setNumColumns(1);
+            else if (width < 768) setNumColumns(2);
+            else if (width < 1024) setNumColumns(3);
+            else setNumColumns(4);
+        };
+
+        handleResize(); // Initial check
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    const getDistributedOrders = () => {
+        if (!displayedOrders.length) return [];
+
+        const perColumn = Math.ceil(displayedOrders.length / numColumns);
+        const columns = Array.from({ length: numColumns }, (_, i) => {
+            return displayedOrders.slice(i * perColumn, (i + 1) * perColumn);
+        });
+
+        return columns;
+    };
+
+    const columnsData = getDistributedOrders();
+
     return (
         <section className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden min-h-[600px] flex flex-col">
             <div className="px-4 py-3 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white">
@@ -260,239 +295,143 @@ function NoestTrackingPage() {
                 </div>
             </div>
 
-            {/* CONTENT */}
-            <div className="flex-1 bg-slate-50/30 p-0 relative overflow-hidden">
-                {/* Desktop Table View */}
-                <div className="hidden md:block overflow-x-auto h-full">
-                    <table className="w-full text-left border-collapse">
-                        <thead className="bg-white sticky top-0 z-10 shadow-sm">
-                            <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                                <th className="px-3 py-2 border-b border-slate-100">Tracking & Ref</th>
-                                <th className="px-3 py-2 border-b border-slate-100">Client</th>
-                                <th className="px-3 py-2 border-b border-slate-100">Produit & Montant</th>
-                                <th className="px-3 py-2 border-b border-slate-100">Localisation</th>
-                                <th className="px-3 py-2 border-b border-slate-100">Type</th>
-                                <th className="px-3 py-2 border-b border-slate-100 text-center">État Détails</th>
-                                <th className="px-3 py-2 border-b border-slate-100">Date MAJ</th>
-                                <th className="px-3 py-2 border-b border-slate-100 text-center">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 bg-white text-xs">
-                            {loading ? (
-                                <tr>
-                                    <td colSpan="8" className="px-3 py-20 text-center">
-                                        <div className="flex flex-col items-center gap-2">
-                                            <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                                            <span className="text-slate-400 text-xs">Chargement...</span>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ) : displayedOrders.length === 0 ? (
-                                <tr><td colSpan="8" className="px-3 py-10 text-center text-slate-400 italic">Aucune commande dans cet onglet.</td></tr>
-                            ) : (
-                                displayedOrders.map((o, idx) => (
-                                    <tr key={o.tracking || idx} className="hover:bg-slate-50 group transition-colors">
-                                        <td className="px-3 py-1.5 align-middle">
-                                            <div className="flex flex-col items-start gap-0.5">
-                                                {o.tracking && (
-                                                    <span className="font-mono text-[9px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1 py-0.5 rounded tracking-wide">
-                                                        {o.tracking}
-                                                    </span>
-                                                )}
-                                                <span className="text-[11px] font-bold text-slate-800">{o.reference || '-'}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-3 py-1.5 align-middle">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-6 h-6 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0">
-                                                    <User className="w-3 h-3 text-slate-400" />
-                                                </div>
-                                                <div className="flex flex-col">
-                                                    <span className="font-bold text-slate-700 truncate max-w-[120px]" title={o.client}>{o.client || '-'}</span>
-                                                    <span className="text-[10px] text-slate-400 font-mono">{o.phone || '-'}</span>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-3 py-1.5 align-middle">
-                                            <div className="flex flex-col gap-0.5">
-                                                <div className="text-[11px] text-slate-700 font-medium max-w-[180px] leading-tight" title={o.produit}>
-                                                    {o.produit || <span className="text-slate-400 italic">Non spécifié</span>}
-                                                </div>
-                                                {o.montant && (
-                                                    <div className="text-[10px] font-bold text-blue-600 w-fit">
-                                                        {o.montant} DA
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className="px-3 py-1.5 align-middle">
-                                            <div className="flex flex-col text-[11px]">
-                                                <div className="font-bold text-slate-700 flex items-center gap-1">
-                                                    {o.wilaya_name} <span className="text-slate-400 font-normal">({o.wilaya_id})</span>
-                                                </div>
-                                                {o.commune && <div className="text-[10px] text-slate-500 truncate max-w-[100px]" title={o.commune}>{o.commune}</div>}
-                                            </div>
-                                        </td>
-                                        <td className="px-3 py-1.5 align-middle">
-                                            {o.is_stopdesk ? (
-                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-100">
-                                                    <Truck className="w-3 h-3" /> Stop Desk
-                                                </span>
-                                            ) : (
-                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-50 text-slate-600 border border-slate-100">
-                                                    <Home className="w-3 h-3" /> Domicile
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td className="px-3 py-1.5 align-middle text-center">
-                                            <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border shadow-sm ${getStatusColor(o)}`}>
-                                                {o.status || 'En attente'}
-                                            </span>
-                                        </td>
-                                        <td className="px-3 py-1.5 align-middle">
-                                            <div className="flex items-center gap-1 text-slate-500 text-[10px] whitespace-nowrap">
-                                                <Calendar className="w-3 h-3 text-slate-400" />
-                                                {o.created_at || (o.activities && o.activities.length > 0 ? o.activities[0].date : '-')}
-                                            </div>
-                                        </td>
-                                        <td className="px-3 py-1.5 align-middle text-center">
-                                            <button onClick={() => setSelectedOrder(o)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors">
-                                                <History className="w-4 h-4" />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+            {/* CONTENT: MASONRY COLUMNS */}
+            <div className="flex-1 bg-slate-50/30 p-4 overflow-y-auto">
+                {loading ? (
+                    <div className="flex flex-col items-center justify-center h-64 gap-3 text-slate-400">
+                        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                        <span className="text-sm">Chargement...</span>
+                    </div>
+                ) : displayedOrders.length === 0 ? (
+                    <div className="text-center py-10 text-slate-400 italic">Aucune commande dans cet onglet.</div>
+                ) : (
+                    <div className="flex gap-4 items-start pb-20">
+                        {columnsData.map((colOrders, colIndex) => (
+                            <div key={colIndex} className="flex-1 flex flex-col gap-4 min-w-0">
+                                {colOrders.map((o) => (
+                                    <OrderCard key={o.tracking || o.reference} order={o} />
+                                ))}
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </section>
+    );
+}
 
-                {/* Mobile Card View */}
-                <div className="md:hidden overflow-y-auto h-full pb-20">
-                    {loading ? (
-                        <div className="p-8 flex flex-col items-center justify-center gap-3 text-slate-400">
-                            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                            <span className="text-sm">Chargement...</span>
-                        </div>
-                    ) : displayedOrders.length === 0 ? (
-                        <div className="p-8 text-center text-slate-400">Aucune commande dans cet onglet.</div>
-                    ) : (
-                        <div className="grid grid-cols-1 gap-4 p-4">
-                            {displayedOrders.map((o, idx) => (
-                                <div key={idx} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                                    <div className="p-4 space-y-4">
-                                        <div className="flex items-start justify-between">
-                                            <div className="flex flex-col items-start gap-1">
-                                                {o.tracking && (
-                                                    <span className="font-mono text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded tracking-wide">
-                                                        {o.tracking}
-                                                    </span>
-                                                )}
-                                                <div className="font-bold text-slate-800">{o.reference || '-'}</div>
-                                            </div>
-                                            <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold uppercase shadow-sm ${getStatusColor(o)}`}>
-                                                {o.status || 'En attente'}
-                                            </span>
-                                        </div>
-                                        <div className="bg-slate-50 p-3 rounded-lg space-y-3">
-                                            <div className="flex items-center gap-3">
-                                                <User className="w-4 h-4 text-slate-400" />
-                                                <div>
-                                                    <div className="font-bold text-slate-700">{o.client || '-'}</div>
-                                                    <div className="text-sm text-slate-500">{o.phone || '-'}</div>
-                                                </div>
-                                            </div>
-                                            <div className="h-px bg-slate-200 w-full"></div>
-                                            <div className="flex justify-between items-center">
-                                                <div className="flex flex-col text-sm text-slate-600">
-                                                    <span className="flex items-center gap-2"><MapPin className="w-4 h-4 text-slate-400" />{o.wilaya_name} {o.wilaya_id}</span>
-                                                    <span className="text-xs pl-6">{o.commune}</span>
-                                                </div>
-                                                <div className="font-bold text-slate-800">{o.montant} DA</div>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center justify-end pt-2">
-                                            <button onClick={() => setSelectedOrder(o)} className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium w-full justify-center">
-                                                <History className="w-4 h-4" /> Historique
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+function OrderCard({ order }) {
+    const [expanded, setExpanded] = useState(false);
+
+    const getStatusColor = (status, statusClass) => {
+        if (statusClass) {
+            if (statusClass.includes('success')) return 'text-green-600 bg-green-50 border-green-100';
+            if (statusClass.includes('danger')) return 'text-red-600 bg-red-50 border-red-100';
+            if (statusClass.includes('warning')) return 'text-orange-600 bg-orange-50 border-orange-100';
+            if (statusClass.includes('info') || statusClass.includes('primary')) return 'text-blue-600 bg-blue-50 border-blue-100';
+        }
+        const s = (status || '').toLowerCase();
+        if (s.includes('livré') || s.includes('delivered')) return 'text-green-600 bg-green-50 border-green-100';
+        if (s.includes('retour') || s.includes('returned') || s.includes('echoué')) return 'text-red-600 bg-red-50 border-red-100';
+        if (s.includes('cours') || s.includes('livraison')) return 'text-orange-600 bg-orange-50 border-orange-100';
+        return 'text-slate-600 bg-slate-100 border-slate-200';
+    };
+
+    const statusStyle = getStatusColor(order.status, order.status_class);
+
+    return (
+        <div
+            className={`
+                bg-white border border-slate-200 rounded-lg shadow-sm transition-all duration-300 overflow-hidden break-inside-avoid mb-4
+                ${expanded ? 'ring-2 ring-blue-500 shadow-md' : 'hover:border-blue-300 hover:shadow'}
+            `}
+        >
+            {/* Header - Always visible, fixed height 40px */}
+            <div
+                onClick={() => setExpanded(!expanded)}
+                className="h-[40px] px-3 flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 transition-colors"
+                title="Cliquer pour voir les détails"
+            >
+                <div className="font-bold text-slate-700 text-sm truncate w-1/3 text-left">
+                    {order.reference || '-'}
+                </div>
+                <div className="text-black text-xs truncate w-2/3 text-center tracking-wide" title={order.client}>
+                    {order.client || '-'}
+                </div>
+                <div className={`w-1/3 flex justify-end`}>
+                    <div className={`px-2 py-0.5 rounded text-[10px] font-bold border truncate max-w-full ${statusStyle}`}>
+                        {order.status}
+                    </div>
                 </div>
             </div>
 
-            {selectedOrder && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[80vh]">
-                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                            <div className="flex-1">
-                                <h3 className="text-lg font-bold text-slate-800">Historique de suivi</h3>
-                                <div className="text-xs text-slate-500 font-mono mt-1 flex items-center gap-2">
-                                    <span className="bg-slate-200 px-1.5 rounded text-slate-700">{selectedOrder.tracking}</span>
-                                    <span className="text-slate-300">|</span>
-                                    <span className="text-slate-600">{selectedOrder.reference}</span>
-                                </div>
-                                {(selectedOrder.driver_name || selectedOrder.driver_phone) && (
-                                    <div className="mt-3 flex items-center gap-2 text-xs bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
-                                        <Truck className="w-4 h-4 text-blue-600" />
-                                        <div className="flex items-center gap-3">
-                                            {selectedOrder.driver_name && <span className="font-medium text-blue-700">{selectedOrder.driver_name}</span>}
-                                            {selectedOrder.driver_phone && <span className="flex items-center gap-1 text-blue-600"><Phone className="w-3 h-3" />{selectedOrder.driver_phone}</span>}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                            <button onClick={() => setSelectedOrder(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
-                                <X className="w-5 h-5" />
-                            </button>
+            {/* Expanded Content */}
+            {expanded && (
+                <div className="border-t border-slate-100 bg-slate-50/50 p-4 text-sm animate-in fade-in slide-in-from-top-1 duration-200 cursor-default" onClick={e => e.stopPropagation()}>
+                    {/* Basic Info */}
+                    <div className="mb-4 space-y-2">
+                        <div className="flex items-center justify-between bg-white p-2 rounded border border-slate-200">
+                            <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1 rounded">{order.tracking}</span>
+                            <span className="text-xs font-bold text-blue-600">{order.montant} DA</span>
                         </div>
-
-                        <div className="p-6 overflow-y-auto space-y-6">
-                            {(selectedOrder.deliveryAttempts || []).length > 0 && (
-                                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                                    <h4 className="text-sm font-bold text-orange-800 mb-3 flex items-center gap-2">
-                                        <RefreshCw className="w-4 h-4" /> Tentatives de livraison
-                                    </h4>
-                                    <div className="space-y-2">
-                                        {selectedOrder.deliveryAttempts.map((attempt, idx) => (
-                                            <div key={idx} className="bg-white rounded border border-orange-100 p-3 text-xs">
-                                                <div className="font-medium text-slate-700 mb-1">{attempt.content}</div>
-                                                <div className="text-slate-400 text-[10px]">{attempt.created_at}</div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
+                        <div className="flex items-start gap-2 text-xs text-slate-600">
+                            <User className="w-3.5 h-3.5 mt-0.5 text-slate-400" />
                             <div>
-                                <h4 className="text-sm font-bold text-slate-700 mb-4">Chronologie</h4>
-                                {(selectedOrder.activities || []).length === 0 ? (
-                                    <div className="text-center py-8 text-slate-400">Aucun historique disponible.</div>
-                                ) : (
-                                    (selectedOrder.activities || []).map((act, idx) => (
-                                        <div key={idx} className="relative pl-8 border-l-2 border-slate-100 last:border-0 pb-8 last:pb-0 group">
-                                            <div className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full border-2 border-white shadow-sm ${idx === 0 ? 'bg-blue-500 ring-4 ring-blue-50' : 'bg-slate-300 group-hover:bg-slate-400'}`}></div>
-                                            <div className="flex flex-col gap-1.5">
-                                                <span className="text-xs font-bold text-slate-400 font-mono">{act.date}</span>
-                                                <span className={`text-sm font-bold ${idx === 0 ? 'text-blue-700' : 'text-slate-700'}`}>{act.event}</span>
-                                                {act.content && <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded border border-slate-100 italic">"{act.content}"</p>}
-                                                <div className="flex flex-wrap gap-2 text-[10px] mt-1">
-                                                    {act.by && <span className="flex items-center gap-1 text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100"><User className="w-3 h-3" /> {act.by}</span>}
-                                                    {act['badge-class'] && <span className={`px-1.5 py-0.5 rounded ${act['badge-class'].includes('success') ? 'bg-green-50 text-green-600' : act['badge-class'].includes('danger') ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-500'}`}>{act.event_key}</span>}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))
+                                <div className="font-bold text-slate-700">{order.client}</div>
+                                <div>{order.phone}</div>
+                            </div>
+                        </div>
+                        <div className="flex items-start gap-2 text-xs text-slate-600">
+                            <MapPin className="w-3.5 h-3.5 mt-0.5 text-slate-400" />
+                            <div>
+                                <div className="font-medium">{order.wilaya_name}</div>
+                                <div className="text-slate-500 leading-tight">{order.commune}</div>
+                                {order.produit && (
+                                    <div className="text-slate-600 mt-1 flex items-center gap-1 font-medium bg-slate-100 px-1.5 py-0.5 rounded w-fit">
+                                        <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div>
+                                        {order.produit}
+                                    </div>
+                                )}
+                                {order.remarque && (
+                                    <div className="text-slate-500 italic mt-1 text-[10px] bg-yellow-50 px-1.5 py-0.5 rounded border border-yellow-100 dark:text-slate-500">
+                                        Note: {order.remarque}
+                                    </div>
                                 )}
                             </div>
                         </div>
+                        {(order.driver_name || order.driver_phone) && (
+                            <div className="flex items-center gap-2 text-xs bg-blue-50/50 border border-blue-100 rounded p-2 text-blue-800">
+                                <Truck className="w-3 h-3" />
+                                <span>{order.driver_name} {order.driver_phone}</span>
+                            </div>
+                        )}
                     </div>
+
+                    {/* Timeline */}
+                    <div className="space-y-0 relative pl-2">
+                        <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-slate-200"></div>
+                        {(order.activities || []).map((act, idx) => (
+                            <div key={idx} className="relative pl-6 pb-6 last:pb-0 h-full">
+                                <div className={`absolute left-0 top-1.5 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm z-10 ${idx === 0 ? 'bg-blue-500' : 'bg-slate-300'}`}></div>
+                                <div className="flex flex-col gap-0.5">
+                                    <span className="text-[10px] font-bold text-slate-400 font-mono leading-none">{act.date}</span>
+                                    <span className={`text-xs font-bold leading-tight ${idx === 0 ? 'text-blue-700' : 'text-slate-700'}`}>{act.event}</span>
+                                    {act.content && <p className="text-[10px] text-slate-500 bg-white p-1.5 rounded border border-slate-100 mt-1 italic leading-tight">"{act.content}"</p>}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <button
+                        onClick={() => setExpanded(false)}
+                        className="w-full mt-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-600 text-xs font-bold rounded transition-colors flex items-center justify-center gap-1"
+                    >
+                        <X className="w-3 h-3" /> Fermer
+                    </button>
                 </div>
             )}
-        </section>
+        </div>
+
     );
 }
 
