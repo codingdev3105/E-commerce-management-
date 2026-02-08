@@ -295,9 +295,9 @@ function NoestTrackingPage() {
                 ) : displayedOrders.length === 0 ? (
                     <div className="text-center py-10 text-slate-400 italic">Aucune commande dans cet onglet.</div>
                 ) : (
-                    <div className="flex gap-4 items-start pb-20">
+                    <div className="flex gap-2 items-start pb-20">
                         {columnsData.map((colOrders, colIndex) => (
-                            <div key={colIndex} className="flex-1 flex flex-col gap-4 min-w-0">
+                            <div key={colIndex} className="flex-1 flex flex-col gap-2 min-w-0">
                                 {colOrders.map((o) => (
                                     <OrderCard key={o.tracking || o.reference} order={o} onMessageSent={handleMessageSent} />
                                 ))}
@@ -306,12 +306,22 @@ function NoestTrackingPage() {
                     </div>
                 )}
             </div>
-        </section>
+        </section >
     );
 }
 
 function OrderCard({ order, onMessageSent }) {
     const [expanded, setExpanded] = useState(false);
+    const { toast } = useUI();
+
+    const handleCopyDriver = (e) => {
+        e.stopPropagation();
+        const text = `${order.driver_name || ''} ${order.driver_phone || ''}`.trim();
+        if (text) {
+            navigator.clipboard.writeText(text);
+            toast.success("Info livreur copiée !");
+        }
+    };
 
     const getStatusColor = (status, statusClass) => {
         if (statusClass) {
@@ -332,7 +342,7 @@ function OrderCard({ order, onMessageSent }) {
     return (
         <div
             className={`
-                bg-white border border-slate-200 rounded-lg shadow-sm transition-all duration-300 overflow-hidden break-inside-avoid mb-4
+                bg-white border border-slate-200 rounded-lg shadow-sm transition-all duration-300 overflow-hidden break-inside-avoid
                 ${expanded ? 'ring-2 ring-blue-500 shadow-md' : 'hover:border-blue-300 hover:shadow'}
             `}
         >
@@ -360,28 +370,30 @@ function OrderCard({ order, onMessageSent }) {
             {expanded && (
                 <div className="border-t border-slate-100 bg-slate-50/50 p-4 text-sm animate-in fade-in slide-in-from-top-1 duration-200 cursor-default" onClick={e => e.stopPropagation()}>
                     <div className="mb-4 space-y-2">
+                        {/* Row 1: Tracking & Phone */}
                         <div className="flex items-center justify-between bg-white p-2 rounded border border-slate-200">
-                            <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1 rounded">{order.tracking}</span>
-                            <span className="text-xs font-bold text-blue-600">{order.montant} DA</span>
+                            <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1 rounded" title="Tracking">{order.tracking}</span>
+                            <span className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                                <Phone className="w-3 h-3 text-slate-400" />
+                                {order.phone}
+                            </span>
                         </div>
-                        <div className="flex items-start gap-2 text-xs text-slate-600">
-                            <User className="w-3.5 h-3.5 mt-0.5 text-slate-400" />
-                            <div>
-                                <div className="font-bold text-slate-700">{order.client}</div>
-                                <div>{order.phone}</div>
-                            </div>
+
+                        {/* Row 2: Product & Price */}
+                        <div className="flex items-center justify-between bg-white p-2 rounded border border-slate-200">
+                            <span className="text-xs font-medium text-slate-600 truncate max-w-[150px]" title={order.produit}>
+                                {order.produit || '-'}
+                            </span>
+                            <span className="text-xs font-bold text-blue-600 whitespace-nowrap">{order.montant} DA</span>
                         </div>
-                        <div className="flex items-start gap-2 text-xs text-slate-600">
+
+
+                        {/* Address Info (MapPin) */}
+                        <div className="flex items-start gap-2 text-xs text-slate-600 px-1">
                             <MapPin className="w-3.5 h-3.5 mt-0.5 text-slate-400" />
                             <div>
                                 <div className="font-medium">{order.wilaya_name}</div>
                                 <div className="text-slate-500 leading-tight">{order.commune}</div>
-                                {order.produit && (
-                                    <div className="text-slate-600 mt-1 flex items-center gap-1 font-medium bg-slate-100 px-1.5 py-0.5 rounded w-fit">
-                                        <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div>
-                                        {order.produit}
-                                    </div>
-                                )}
                                 {order.remarque && (
                                     <div className="text-slate-500 italic mt-1 text-[10px] bg-yellow-50 px-1.5 py-0.5 rounded border border-yellow-100 dark:text-slate-500">
                                         Note: {order.remarque}
@@ -389,8 +401,14 @@ function OrderCard({ order, onMessageSent }) {
                                 )}
                             </div>
                         </div>
+
+                        {/* Driver Info */}
                         {(order.driver_name || order.driver_phone) && (
-                            <div className="flex items-center gap-2 text-xs bg-blue-50/50 border border-blue-100 rounded p-2 text-blue-800">
+                            <div
+                                onClick={handleCopyDriver}
+                                className="flex items-center gap-2 text-xs bg-blue-50/50 border border-blue-100 rounded p-2 text-blue-800 cursor-pointer hover:bg-blue-100 transition-colors"
+                                title="Cliquer pour copier"
+                            >
                                 <Truck className="w-3 h-3" />
                                 <span>{order.driver_name} {order.driver_phone}</span>
                             </div>
