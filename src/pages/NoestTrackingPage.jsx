@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getOrders, getNoestTrackingInfo } from '../services/api';
+import { getOrders, getNoestTrackingInfo, updateMessageStatus } from '../services/api';
 import { Search, RefreshCw, Truck, MapPin, User, Calendar, X, History, Phone, Home } from 'lucide-react';
 import { useUI } from '../context/UIContext';
 import { useAppData } from '../context/AppDataContext';
@@ -24,7 +24,7 @@ function NoestTrackingPage() {
         if (key.includes('return') || label.includes('retour')) return 'Retour';
         if (key.includes('suspendu')) return 'Suspendu';
         if (key === 'mise_a_jour' && label.includes('tentative')) return isStopDesk ? 'En Hub' : 'En Livraison';
-        if (key === 'fdr_activated' || key === 'sent_to_redispatch' || label.includes('en livraison')) return 'En Livraison';
+        if (key === 'fdr_activated' || key.includes('sent_to_redispatch') || label.includes('en livraison')) return 'En Livraison';
         if (key === 'validation_reception') return isStopDesk ? 'En Hub' : 'En Livraison';
         if (key === 'customer_validation') return 'Validé';
         if (key === 'upload') return 'Uploadé';
@@ -36,10 +36,13 @@ function NoestTrackingPage() {
         setLoading(true);
         try {
             const sheetOrders = await getOrders();
+            console.log("Sheet Orders fetched:", sheetOrders.length);
+
             const systemTrackings = sheetOrders
-                .filter(o => o.state && o.state.toLowerCase().includes('system'))
-                .map(o => o.tracking)
-                .filter(t => t);
+                .filter(o => o.state && o.state.toLowerCase().includes('system') && o.tracking)
+                .map(o => o.tracking);
+
+            console.log("Trackings to fetch from Noest:", systemTrackings.length);
 
             if (systemTrackings.length === 0) {
                 setOrders([]);
@@ -48,42 +51,16 @@ function NoestTrackingPage() {
             }
 
             const result = await getNoestTrackingInfo(systemTrackings);
+            console.log("Noest results received:", Object.keys(result).length);
 
             const parseCustomDate = (dateStr) => {
                 if (!dateStr) return new Date(0);
-
                 let cleanStr = dateStr;
                 if (typeof dateStr === 'string' && dateStr.includes('.000000Z')) {
                     cleanStr = dateStr.replace(' ', 'T').replace('.000000Z', 'Z');
                 }
-
-                const ymdParts = dateStr.match(/^(\d{4})[-/](\d{2})[-/](\d{2})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?/);
-                if (ymdParts) {
-                    return new Date(
-                        parseInt(ymdParts[1], 10),
-                        parseInt(ymdParts[2], 10) - 1,
-                        parseInt(ymdParts[3], 10),
-                        parseInt(ymdParts[4] || 0, 10),
-                        parseInt(ymdParts[5] || 0, 10),
-                        parseInt(ymdParts[6] || 0, 10)
-                    );
-                }
-
-                const dmyParts = dateStr.match(/^(\d{2})[-/](\d{2})[-/](\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?/);
-                if (dmyParts) {
-                    return new Date(
-                        parseInt(dmyParts[3], 10),
-                        parseInt(dmyParts[2], 10) - 1,
-                        parseInt(dmyParts[1], 10),
-                        parseInt(dmyParts[4] || 0, 10),
-                        parseInt(dmyParts[5] || 0, 10),
-                        parseInt(dmyParts[6] || 0, 10)
-                    );
-                }
-
                 const d = new Date(cleanStr);
-                if (!isNaN(d.getTime())) return d;
-                return new Date(0);
+                return !isNaN(d.getTime()) ? d : new Date(0);
             };
 
             const formatDate = (dateObj) => {
@@ -106,12 +83,19 @@ function NoestTrackingPage() {
                 const wilayaName = wilayas.find(w => w.code == info.wilaya_id)?.nom || '';
                 const isStopDesk = Number(info.stop_desk) === 1;
 
-                // Determine Category
                 const category = getCategoryFromEvent(latest.event_key, latest.event || info.current_status, isStopDesk);
 
-                // Find local order to get remark
-                const localOrder = sheetOrders.find(o => o.tracking === info.tracking);
+                const localOrder = sheetOrders.find(o =>
+                    String(o.tracking).trim() === String(info.tracking).trim()
+                );
+
+                if (!localOrder) {
+                    console.warn("Orphaned tracking info:", info.tracking);
+                }
+
                 const remarque = localOrder?.remarque || info.remarque || '';
+                const isMessageSent = localOrder ? (localOrder.isMessageSent === true) : false;
+                const rowId = localOrder?.rowId;
 
                 return {
                     tracking: info.tracking,
@@ -136,33 +120,46 @@ function NoestTrackingPage() {
                     driver_phone: info.driver_phone,
                     produit: info.produit,
                     remarque: remarque,
-                    is_stopdesk: isStopDesk
+                    is_stopdesk: isStopDesk,
+                    isMessageSent: isMessageSent,
+                    rowId: rowId
                 };
             });
 
             setOrders(noestData);
         } catch (error) {
             console.error("Failed to fetch Noest info", error);
-            toast.error("Erreur de synchronisation avec Noest");
+            toast.error("Erreur lors de la récupération des données");
         } finally {
             setLoading(false);
         }
     };
 
-    const getStatusColor = (order) => {
-        if (order.status_class) {
-            if (order.status_class.includes('success')) return 'bg-green-100 text-green-700 border border-green-200';
-            if (order.status_class.includes('danger')) return 'bg-red-100 text-red-700 border border-red-200';
-            if (order.status_class.includes('warning')) return 'bg-orange-100 text-orange-700 border border-orange-200';
-            if (order.status_class.includes('info') || order.status_class.includes('primary')) return 'bg-blue-100 text-blue-700 border border-blue-200';
+    const handleMessageSent = async (order) => {
+        console.log("handleMessageSent clicked for order:", order);
+
+        if (!order.rowId) {
+            console.error("Missing rowId for order", order);
+            toast.error("Impossible de mettre à jour : ID manquant (Commande introuvable dans le sheet)");
+            return;
         }
 
-        const s = (order.status || '').toLowerCase();
-        if (s.includes('livré') || s.includes('delivered')) return 'bg-green-100 text-green-700 border border-green-200';
-        if (s.includes('retour') || s.includes('returned') || s.includes('echoué')) return 'bg-red-100 text-red-700 border border-red-200';
-        if (s.includes('centre') || s.includes('hub') || s.includes('ramassé') || s.includes('upload')) return 'bg-blue-100 text-blue-700 border border-blue-200';
-        if (s.includes('livraison') || s.includes('cours')) return 'bg-orange-100 text-orange-700 border border-orange-200';
-        return 'bg-gray-100 text-gray-700 border border-gray-200';
+        try {
+            // Optimistic update
+            setOrders(prev => prev.map(o =>
+                o.tracking === order.tracking ? { ...o, isMessageSent: true } : o
+            ));
+
+            await updateMessageStatus(order.rowId, 'OUI');
+            toast.success("Statut mis à jour !");
+        } catch (error) {
+            console.error("Failed to update message status", error);
+            toast.error("Erreur lors de la mise à jour");
+            // Revert on failure
+            setOrders(prev => prev.map(o =>
+                o.tracking === order.tracking ? { ...o, isMessageSent: false } : o
+            ));
+        }
     };
 
     const [activeTab, setActiveTab] = useState('all');
@@ -203,14 +200,12 @@ function NoestTrackingPage() {
 
     const displayedOrders = categorizedOrders();
 
-    // If active tab disappears (becomes empty), switch to 'all'
     useEffect(() => {
         if (activeTab !== 'all' && (tabCounts[activeTab] || 0) === 0 && !loading && orders.length > 0) {
             setActiveTab('all');
         }
     }, [tabCounts, activeTab, loading, orders.length]);
 
-    // Column distribution logic
     const [numColumns, setNumColumns] = useState(4);
 
     useEffect(() => {
@@ -222,20 +217,17 @@ function NoestTrackingPage() {
             else setNumColumns(4);
         };
 
-        handleResize(); // Initial check
+        handleResize();
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
     const getDistributedOrders = () => {
         if (!displayedOrders.length) return [];
-
         const perColumn = Math.ceil(displayedOrders.length / numColumns);
-        const columns = Array.from({ length: numColumns }, (_, i) => {
+        return Array.from({ length: numColumns }, (_, i) => {
             return displayedOrders.slice(i * perColumn, (i + 1) * perColumn);
         });
-
-        return columns;
     };
 
     const columnsData = getDistributedOrders();
@@ -267,7 +259,6 @@ function NoestTrackingPage() {
                 </div>
             </div>
 
-            {/* TABS SCROLLABLE */}
             <div className="border-b border-slate-100 bg-slate-50/50">
                 <div className="flex overflow-x-auto hide-scrollbar px-2 gap-1">
                     {visibleTabs.map(tab => {
@@ -295,7 +286,6 @@ function NoestTrackingPage() {
                 </div>
             </div>
 
-            {/* CONTENT: MASONRY COLUMNS */}
             <div className="flex-1 bg-slate-50/30 p-4 overflow-y-auto">
                 {loading ? (
                     <div className="flex flex-col items-center justify-center h-64 gap-3 text-slate-400">
@@ -309,7 +299,7 @@ function NoestTrackingPage() {
                         {columnsData.map((colOrders, colIndex) => (
                             <div key={colIndex} className="flex-1 flex flex-col gap-4 min-w-0">
                                 {colOrders.map((o) => (
-                                    <OrderCard key={o.tracking || o.reference} order={o} />
+                                    <OrderCard key={o.tracking || o.reference} order={o} onMessageSent={handleMessageSent} />
                                 ))}
                             </div>
                         ))}
@@ -320,7 +310,7 @@ function NoestTrackingPage() {
     );
 }
 
-function OrderCard({ order }) {
+function OrderCard({ order, onMessageSent }) {
     const [expanded, setExpanded] = useState(false);
 
     const getStatusColor = (status, statusClass) => {
@@ -338,7 +328,7 @@ function OrderCard({ order }) {
     };
 
     const statusStyle = getStatusColor(order.status, order.status_class);
-
+    console.log(order);
     return (
         <div
             className={`
@@ -346,16 +336,18 @@ function OrderCard({ order }) {
                 ${expanded ? 'ring-2 ring-blue-500 shadow-md' : 'hover:border-blue-300 hover:shadow'}
             `}
         >
-            {/* Header - Always visible, fixed height 40px */}
             <div
                 onClick={() => setExpanded(!expanded)}
                 className="h-[40px] px-3 flex items-center justify-between gap-2 cursor-pointer bg-white hover:bg-slate-50 transition-colors"
                 title="Cliquer pour voir les détails"
             >
-                <div className="font-bold text-slate-700 text-sm truncate w-1/3 text-left">
-                    {order.reference || '-'}
+                <div className="flex items-center w-1/3 truncate">
+                    <div className={`w-2 h-2 rounded-full mr-2 shrink-0 ${order.isMessageSent ? 'bg-green-500' : 'bg-blue-500'}`} title={order.isMessageSent ? "Message envoyé" : "Message non envoyé"}></div>
+                    <div className="font-bold text-slate-700 text-sm truncate text-left">
+                        {order.reference || '-'}
+                    </div>
                 </div>
-                <div className="text-black text-xs truncate w-2/3 text-center tracking-wide" title={order.client}>
+                <div className="text-black text-xs truncate w-1/3 text-center tracking-wide" title={order.client}>
                     {order.client || '-'}
                 </div>
                 <div className={`w-1/3 flex justify-end`}>
@@ -365,10 +357,8 @@ function OrderCard({ order }) {
                 </div>
             </div>
 
-            {/* Expanded Content */}
             {expanded && (
                 <div className="border-t border-slate-100 bg-slate-50/50 p-4 text-sm animate-in fade-in slide-in-from-top-1 duration-200 cursor-default" onClick={e => e.stopPropagation()}>
-                    {/* Basic Info */}
                     <div className="mb-4 space-y-2">
                         <div className="flex items-center justify-between bg-white p-2 rounded border border-slate-200">
                             <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1 rounded">{order.tracking}</span>
@@ -407,7 +397,6 @@ function OrderCard({ order }) {
                         )}
                     </div>
 
-                    {/* Timeline */}
                     <div className="space-y-0 relative pl-2">
                         <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-slate-200"></div>
                         {(order.activities || []).map((act, idx) => (
@@ -422,16 +411,30 @@ function OrderCard({ order }) {
                         ))}
                     </div>
 
-                    <button
-                        onClick={() => setExpanded(false)}
-                        className="w-full mt-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-600 text-xs font-bold rounded transition-colors flex items-center justify-center gap-1"
-                    >
-                        <X className="w-3 h-3" /> Fermer
-                    </button>
+                    <div className="mt-4 flex flex-col gap-2">
+                        {!order.isMessageSent && (
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (onMessageSent) onMessageSent(order);
+                                }}
+                                className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded transition-colors flex items-center justify-center gap-2"
+                            >
+                                <Phone className="w-3 h-3" /> Envoyer Message
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => setExpanded(false)}
+                            className="w-full py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-600 text-xs font-bold rounded transition-colors flex items-center justify-center gap-1"
+                        >
+                            <X className="w-3 h-3" /> Fermer
+                        </button>
+                    </div>
                 </div>
             )}
         </div>
-
     );
 }
 

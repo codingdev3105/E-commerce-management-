@@ -1,9 +1,10 @@
 import axios from 'axios';
 
 
-// API configuration
+// API configuration 
+// 'http://localhost:3001/api'
 // Use environment variable if available, otherwise fallback to localhost for dev
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const baseURL = import.meta.env.VITE_API_URL ;
 
 const api = axios.create({
     baseURL: baseURL,
@@ -100,6 +101,11 @@ export const getNoestWilayas = async () => {
 export const getNoestFees = async (wilayaId) => {
     const params = wilayaId ? { wilaya_id: wilayaId } : {};
     const response = await api.get('/noest/fees', { params });
+    return response.data;
+};
+
+export const updateMessageStatus = async (id, status = 'OUI') => {
+    const response = await api.put(`/commandes/${id}/message-status`, { status });
     return response.data;
 };
 
