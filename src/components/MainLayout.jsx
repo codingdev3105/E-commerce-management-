@@ -58,7 +58,10 @@ function MainLayout() {
                 </div>
             </header>
 
-            <main className="max-w-[98%] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+            <main className={`mx-auto transition-all duration-300 ${location.pathname === '/commandes'
+                ? 'w-full px-2 sm:px-4 py-4'
+                : 'max-w-[98%] px-4 sm:px-6 lg:px-8 py-8 space-y-8'
+                }`}>
                 <Outlet />
             </main>
 

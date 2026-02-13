@@ -29,9 +29,7 @@ function OrdersListPage() {
     const [bulkState, setBulkState] = useState('');
     const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
-    // Pagination State
-    const [itemsPerPage, setItemsPerPage] = useState(30);
-    const [currentPage, setCurrentPage] = useState(1);
+
 
     const handleBackToList = () => {
         setViewMode('list');
@@ -79,48 +77,19 @@ function OrdersListPage() {
         }
     };
 
-    const handleExportNewOrders = async () => {
-        const newOrders = orders.filter(o => (o.state || '').includes('Nouvelle'));
-
-        if (newOrders.length === 0) {
-            toast.error("Aucune nouvelle commande à exporter.");
+    const handleExportFiltered = async () => {
+        if (filteredOrders.length === 0) {
+            toast.error("Aucune commande affichée à exporter.");
             return;
         }
 
         const role = localStorage.getItem('role') || 'Utilisateur';
         const timestamp = new Date().toISOString().slice(0, 10);
-        const filename = `commandes_nouvelles_${timestamp}.pdf`;
+        const filename = `commandes_export_${timestamp}.pdf`;
 
         // Export PDF
-        await exportToPDF(newOrders, filename, role);
-        toast.success(`Export PDF téléchargé!(${newOrders.length} nouvelles commandes)`);
-
-        // Ask user if they want to update status to 'Atelier'
-        const confirmed = await confirm({
-            title: "Mise à jour des états",
-            message: `${newOrders.length} nouvelles commandes ont été exportées.Voulez - vous changer leur état vers "Atelier" ? `,
-            type: "confirm",
-            confirmText: "Oui, passer à Atelier",
-            cancelText: "Non, garder Nouvelle"
-        });
-
-        if (confirmed) {
-            setIsBulkUpdating(true);
-            try {
-                const updates = newOrders.map(o => {
-                    const payload = { ...o, state: 'Atelier' };
-                    return updateOrder(o.rowId, payload);
-                });
-                await Promise.all(updates);
-                toast.success(`${newOrders.length} commandes passées en 'Atelier'!`);
-                fetchOrders();
-            } catch (error) {
-                console.error("State update failed", error);
-                toast.error("Erreur lors de la mise à jour des états.");
-            } finally {
-                setIsBulkUpdating(false);
-            }
-        }
+        await exportToPDF(filteredOrders, filename, role);
+        toast.success(`Export PDF téléchargé! (${filteredOrders.length} commandes)`);
     };
 
     const handleExportSelection = () => {
@@ -214,16 +183,8 @@ function OrdersListPage() {
         );
     });
 
-    // Pagination Logic
-    const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const paginatedOrders = filteredOrders.slice(startIndex, startIndex + itemsPerPage);
-
-    // Reset to page 1 if filter changes
-    useEffect(() => {
-        setCurrentPage(1);
-        setCurrentPage(1);
-    }, [filterText, itemsPerPage, statusFilter]);
+    // No Pagination - Show All
+    const paginatedOrders = filteredOrders;
 
     // Status counts
     const statusCounts = orders.reduce((acc, order) => {
@@ -273,9 +234,10 @@ function OrdersListPage() {
         const currentState = distinctStates[0];
         const targetState = bulkState;
 
-        // 1. Interdire la modification si la commande est déjà envoyée (System / Envoyer)
-        if (currentState && (currentState.includes('System') || currentState.includes('Envoyer'))) {
-            toast.error("Modification refusée : Cette commande est déjà envoyée (System).");
+        // 1. Restrict modification to 'Nouvelle' or 'Atelier' only
+        const isEditable = ['Nouvelle', 'Atelier'].some(s => (currentState || '').includes(s));
+        if (!isEditable) {
+            toast.error("Modification refusée : Seules les commandes 'Nouvelle' ou 'Atelier' peuvent être modifiées.");
             return;
         }
 
@@ -327,14 +289,14 @@ function OrdersListPage() {
         const selectedOrderObjects = orders.filter(o => selectedOrders.includes(o.rowId));
         if (selectedOrderObjects.length === 0) return;
 
-        // Filter valid orders: Not already sent
+        // Filter valid orders: Must be 'Nouvelle' or 'Atelier'
         const validOrders = selectedOrderObjects.filter(o => {
             const s = (o.state || '');
-            return !s.includes('System') && !s.includes('Envoyer');
+            return ['Nouvelle', 'Atelier'].some(keyword => s.includes(keyword));
         });
 
         if (validOrders.length === 0) {
-            toast.error("Aucune commande éligible à l'envoi (déjà envoyées).");
+            toast.error("Aucune commande éligible à l'envoi (seules 'Nouvelle' ou 'Atelier' peuvent être envoyées).");
             return;
         }
 
@@ -378,8 +340,11 @@ function OrdersListPage() {
     const getStateColor = (state) => {
         const s = (state || '');
         if (s.includes('Nouvelle')) return 'bg-blue-100 text-blue-700 border border-blue-200';
-        if (s.includes('Annuler')) return 'bg-red-100 text-red-700 border border-red-200';
-        if (s.includes('System') || s.includes('Envoyer')) return 'bg-orange-100 text-orange-700 border border-orange-200';
+        if (s.includes('Annuler') || s.includes('Retour')) return 'bg-red-100 text-red-700 border border-red-200';
+        if (s.includes('Livré') || s.includes('Encaissé')) return 'bg-green-100 text-green-700 border border-green-200';
+        if (s.includes('En Livraison')) return 'bg-orange-100 text-orange-700 border border-orange-200';
+        if (s.includes('En Hub') || s.includes('Validé') || s.includes('Uploadé')) return 'bg-cyan-100 text-cyan-700 border border-cyan-200';
+        if (s.includes('System') || s.includes('Envoyer')) return 'bg-amber-100 text-amber-700 border border-amber-200'; // Changed to amber for distinction
         if (s.includes('Atelier')) return 'bg-purple-100 text-purple-700 border border-purple-200';
         return 'bg-gray-100 text-gray-700 border border-gray-200';
     };
@@ -394,78 +359,57 @@ function OrdersListPage() {
 
     return (
         <section className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-100 flex flex-col gap-4">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="px-4 py-4 md:px-8 md:py-6 border-b border-slate-100 flex flex-col gap-3 md:gap-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4">
                     <div>
-                        <h2 className="text-lg font-bold text-slate-800">Historique des Commandes</h2>
-                        <div className="text-sm text-slate-400 mt-1">{filteredOrders.length} commandes trouvées</div>
+                        <h2 className="text-base md:text-lg font-bold text-slate-800">Liste des commandes ({filteredOrders.length})</h2>
                     </div>
-                    <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center w-full md:w-auto">
-
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm text-slate-500 font-medium whitespace-nowrap">Afficher :</span>
-                            <select
-                                value={itemsPerPage}
-                                onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                                className="border-slate-200 rounded-lg text-sm py-2 px-2 focus:ring-blue-500 focus:border-blue-500 bg-slate-50 w-full md:w-auto"
-                                title="Lignes par page"
-                            >
-                                <option value={30}>30</option>
-                                <option value={50}>50</option>
-                                <option value={100}>100</option>
-                                <option value={filteredOrders.length}>ALL</option>
-                            </select>
-                        </div>
-
-                        <div className="relative group w-full md:w-auto">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-blue-600 transition-colors pointer-events-none" />
+                    <div className="flex items-center gap-2 w-full md:w-auto">
+                        <div className="relative group flex-1 md:w-auto">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-600 transition-colors pointer-events-none" />
                             <input
                                 type="text"
                                 value={filterText}
                                 onChange={(e) => setFilterText(e.target.value)}
-                                placeholder="Rechercher une commande..."
-                                className="pl-12 pr-4 py-3 w-full md:w-80 bg-white border-2 border-slate-200 rounded-xl text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 focus:outline-none transition-all shadow-sm hover:shadow-md"
+                                placeholder="Rechercher..."
+                                className="pl-9 pr-8 py-2 md:py-3 w-full md:w-80 bg-white border border-slate-200 rounded-lg md:rounded-xl text-xs md:text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 md:focus:ring-4 focus:ring-blue-100 focus:outline-none transition-all shadow-sm"
                             />
                             {filterText && (
                                 <button
                                     onClick={() => setFilterText('')}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 rounded-full transition-colors"
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 rounded-full transition-colors"
                                 >
-                                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
+                                    <X className="w-3 h-3 text-slate-400" />
                                 </button>
                             )}
                         </div>
 
                         {/* Global Export Buttons */}
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={handleExportNewOrders}
-                                className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-red-50 border border-red-200 text-red-700 rounded-lg hover:bg-red-100 transition-colors shadow-sm text-sm font-bold whitespace-nowrap"
-                                title="Exporter les nouvelles commandes en PDF"
-                            >
-                                <FileText className="w-4 h-4" />
-                                <span className="inline">Exporter Nouvelles (PDF)</span>
-                            </button>
-                        </div>
+                        <button
+                            onClick={handleExportFiltered}
+                            className="flex items-center justify-center gap-2 px-3 py-2 bg-red-50 border border-red-200 text-red-700 rounded-lg hover:bg-red-100 transition-colors shadow-sm text-xs md:text-sm font-bold whitespace-nowrap"
+                            title="Exporter PDF"
+                        >
+                            <FileText className="w-4 h-4" />
+                            <span className="hidden md:inline">Exporter PDF</span>
+                        </button>
                     </div>
                 </div>
 
                 {/* Status Filter Tabs */}
-                <div className="flex items-center gap-2 flex-wrap px-1">
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 hide-scrollbar -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap">
                     {availableStatuses.map(status => (
                         <button
                             key={status}
                             onClick={() => setStatusFilter(status)}
-                            className={`group relative px-4 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap transition-all duration-200 border-2 ${statusFilter === status
-                                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-transparent shadow-lg shadow-blue-500/30 scale-105'
-                                : 'bg-white text-slate-700 border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 hover:shadow-md'
+                            className={`group relative px-3 py-1.5 md:px-4 md:py-2.5 rounded-lg md:rounded-xl text-xs md:text-sm font-semibold whitespace-nowrap transition-all duration-200 border ${statusFilter === status
+                                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-transparent shadow-md md:shadow-lg shadow-blue-500/30'
+                                : 'bg-white text-slate-700 border-slate-200 hover:border-blue-300 hover:bg-blue-50/50'
                                 }`}
                         >
-                            <span className="flex items-center gap-2">
+                            <span className="flex items-center gap-1.5 md:gap-2">
                                 {status}
-                                <span className={`inline-flex items-center justify-center min-w-[24px] h-6 px-2 text-xs font-bold rounded-full transition-all ${statusFilter === status
+                                <span className={`inline-flex items-center justify-center min-w-[20px] h-5 md:min-w-[24px] md:h-6 px-1.5 text-[10px] md:text-xs font-bold rounded-full transition-all ${statusFilter === status
                                     ? 'bg-white/20 text-white backdrop-blur-sm'
                                     : 'bg-slate-100 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700'
                                     }`}>
@@ -638,8 +582,8 @@ function OrdersListPage() {
 
                                             <button
                                                 onClick={() => { setCurrentOrderId(order.rowId); setViewMode('edit'); }}
-                                                disabled={order.state.includes('System')}
-                                                className={`p-1.5 rounded transition-colors ${order.state.includes('System')
+                                                disabled={!['Nouvelle', 'Atelier'].some(s => (order.state || '').includes(s))}
+                                                className={`p-1.5 rounded transition-colors ${!['Nouvelle', 'Atelier'].some(s => (order.state || '').includes(s))
                                                     ? 'text-slate-200 cursor-not-allowed'
                                                     : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50'
                                                     }`}
@@ -650,8 +594,8 @@ function OrdersListPage() {
 
                                             <button
                                                 onClick={() => handleSendToNoest(order.rowId, order.reference)}
-                                                disabled={order.state && order.state.includes('System')}
-                                                className={`p-1.5 rounded transition-colors ${!(order.state && order.state.includes('System'))
+                                                disabled={!['Nouvelle', 'Atelier'].some(s => (order.state || '').includes(s))}
+                                                className={`p-1.5 rounded transition-colors ${['Nouvelle', 'Atelier'].some(s => (order.state || '').includes(s))
                                                     ? 'text-slate-400 hover:text-green-600 hover:bg-green-50'
                                                     : 'text-slate-200 cursor-not-allowed hidden'
                                                     }`}
@@ -662,8 +606,8 @@ function OrdersListPage() {
 
                                             <button
                                                 onClick={() => handleDelete(order.rowId, order.reference)}
-                                                disabled={order.state.includes('System')}
-                                                className={`p-1.5 rounded transition-colors ${order.state.includes('System')
+                                                disabled={!['Nouvelle', 'Atelier'].some(s => (order.state || '').includes(s))}
+                                                className={`p-1.5 rounded transition-colors ${!['Nouvelle', 'Atelier'].some(s => (order.state || '').includes(s))
                                                     ? 'text-slate-200 cursor-not-allowed'
                                                     : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
                                                     }`}
@@ -702,123 +646,112 @@ function OrdersListPage() {
                         </div>
 
                         {paginatedOrders.map((order) => (
-                            <div key={order.rowId} className={`bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden ${selectedOrders.includes(order.rowId) ? 'ring-2 ring-blue-500 border-transparent' : ''} `}>
-                                <div className="p-4 space-y-4">
-                                    {/* Header: Checkbox + Ref + Date + Status + Amount */}
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex items-start gap-3">
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedOrders.includes(order.rowId)}
-                                                onChange={(e) => toggleSelectRow(order.rowId, e)}
-                                                onClick={(e) => e.stopPropagation()}
-                                                className="mt-1 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                            />
-                                            <div>
-                                                <div className="font-bold text-slate-800">{order.reference}</div>
-                                                <div className="text-xs text-slate-400 font-mono">{order.date}</div>
-                                            </div>
-                                        </div>
-                                        <div className="flex flex-col items-end gap-1">
-                                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${getStateColor(order.state)} `}>
-                                                {order.state}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {/* Middle: Client, Product & Price (Stacked) */}
-                                    <div className="bg-slate-50 p-3 rounded-lg space-y-3">
-                                        {/* Row 1: Client */}
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 font-bold shrink-0">
-                                                {order.client?.charAt(0)}
-                                            </div>
-                                            <div>
-                                                <div className="font-bold text-slate-700">{order.client}</div>
-                                                <div className="text-sm text-slate-500 flex items-center gap-1">
-                                                    <Phone className="w-3 h-3" />
-                                                    {order.phone}
-                                                    {order.phone2 && (
-                                                        <>
-                                                            {' '}- {order.phone2}
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="h-px bg-slate-200 w-full"></div>
-
-                                        {/* Row 2: Product & Price */}
-                                        <div className="flex justify-between items-center">
-                                            <div className="text-sm font-medium text-slate-600 truncate mr-2 flex-1" title={order.product}>
-                                                {order.product || <span className="text-slate-400 italic">Produit non spécifié</span>}
-                                            </div>
-                                            <div className="font-bold text-slate-800 text-lg whitespace-nowrap">
-                                                {order.amount} <span className="text-xs font-normal text-slate-500">DA</span>
+                            <div key={order.rowId} className={`bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden ${selectedOrders.includes(order.rowId) ? 'ring-1 ring-blue-500 border-transparent' : ''}`}>
+                                <div className="p-3">
+                                    {/* Top Row: Checkbox, Ref, Status */}
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedOrders.includes(order.rowId)}
+                                            onChange={(e) => toggleSelectRow(order.rowId, e)}
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center justify-between">
+                                                <span className="font-bold text-slate-800 text-sm truncate">{order.reference}</span>
+                                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border ${getStateColor(order.state)}`}>
+                                                    {order.state}
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* Footer: Delivery Type & Actions */}
-                                    <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-                                        <div className="flex flex-col gap-1 items-start">
+                                    {/* Info Grid: Compact Layout */}
+                                    <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs mb-3">
+                                        <div className="col-span-1 text-slate-500 font-mono">{order.date}</div>
+                                        <div className="col-span-1 text-right font-bold text-slate-800">{order.amount} DA</div>
+
+                                        <div className="col-span-2 border-t border-slate-100 my-1"></div>
+
+                                        <div className="col-span-2 flex items-center justify-between">
+                                            <div className="font-bold text-slate-700 truncate mr-2" title={order.client}>{order.client}</div>
+                                            <div className="text-slate-500 flex items-center gap-1 shrink-0">
+                                                <Phone className="w-3 h-3" />
+                                                <span>{order.phone}</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="col-span-2 text-slate-600 truncate bg-slate-50 px-2 py-1 rounded" title={order.product}>
+                                            {order.product || <span className="text-slate-400 italic">Non spécifié</span>}
+                                        </div>
+                                    </div>
+
+
+                                    {/* Footer: Type & Actions */}
+                                    <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                                        {/* Delivery Mode */}
+                                        <div className="flex items-center gap-2">
                                             {order.isStopDesk ? (
-                                                <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-700">
-                                                    <Truck className="w-3 h-3" /> Stop Desk
+                                                <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
+                                                    <Truck className="w-3 h-3" /> Stop
                                                 </span>
                                             ) : (
-                                                <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-600">
-                                                    <Home className="w-3 h-3" /> Domicile
+                                                <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-slate-600 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
+                                                    <Home className="w-3 h-3" /> Dom
                                                 </span>
                                             )}
                                             {order.isExchange && (
-                                                <span className="inline-flex items-center gap-1 text-xs font-medium text-orange-700">
-                                                    <RefreshCw className="w-3 h-3" /> Échange
+                                                <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded border border-orange-100">
+                                                    <RefreshCw className="w-3 h-3" /> Éch
                                                 </span>
                                             )}
                                         </div>
 
-                                        <div className="flex items-center gap-2">
+                                        {/* Mini Action Buttons */}
+                                        <div className="flex items-center gap-1">
                                             <button
                                                 onClick={() => { setCurrentOrderId(order.rowId); setViewMode('details'); }}
-                                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-slate-100"
-                                                title="Voir les détails"
+                                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded border border-slate-200 transition-colors"
+                                                title="Voir"
                                             >
-                                                <Eye className="w-4 h-4" />
+                                                <Eye className="w-3.5 h-3.5" />
                                             </button>
 
                                             <button
                                                 onClick={() => { setCurrentOrderId(order.rowId); setViewMode('edit'); }}
-                                                disabled={order.state.includes('System')}
-                                                className={`p-2 rounded-lg transition-colors border border-slate-100 ${order.state.includes('System')
-                                                    ? 'text-slate-200 cursor-not-allowed'
+                                                disabled={!['Nouvelle', 'Atelier'].some(s => (order.state || '').includes(s))}
+                                                className={`p-1.5 rounded transition-colors ${!['Nouvelle', 'Atelier'].some(s => (order.state || '').includes(s))
+                                                    ? 'text-slate-200 cursor-not-allowed bg-slate-50'
                                                     : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50'
-                                                    } `}
+                                                    }`}
+                                                title="Modifier"
                                             >
-                                                <Pencil className="w-4 h-4" />
+                                                <Pencil className="w-3.5 h-3.5" />
                                             </button>
 
                                             <button
                                                 onClick={() => handleSendToNoest(order.rowId, order.reference)}
-                                                disabled={order.state && order.state.includes('System')}
-                                                className={`p-2 rounded-lg transition-colors border border-slate-100 ${!(order.state && order.state.includes('System'))
+                                                disabled={!['Nouvelle', 'Atelier'].some(s => (order.state || '').includes(s))}
+                                                className={`p-1.5 rounded transition-colors ${['Nouvelle', 'Atelier'].some(s => (order.state || '').includes(s))
                                                     ? 'text-slate-400 hover:text-green-600 hover:bg-green-50'
                                                     : 'text-slate-200 cursor-not-allowed hidden'
-                                                    } `}
+                                                    }`}
+                                                title="Noest"
                                             >
-                                                <Send className="w-4 h-4" />
+                                                <Send className="w-3.5 h-3.5" />
                                             </button>
 
                                             <button
                                                 onClick={() => handleDelete(order.rowId, order.reference)}
-                                                disabled={order.state.includes('System')}
-                                                className={`p-2 rounded-lg transition-colors border border-slate-100 ${order.state.includes('System')
-                                                    ? 'text-slate-200 cursor-not-allowed'
+                                                disabled={!['Nouvelle', 'Atelier'].some(s => (order.state || '').includes(s))}
+                                                className={`p-1.5 rounded transition-colors ${!['Nouvelle', 'Atelier'].some(s => (order.state || '').includes(s))
+                                                    ? 'text-slate-200 cursor-not-allowed bg-slate-50'
                                                     : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
-                                                    } `}
+                                                    }`}
+                                                title="Supprimer"
                                             >
-                                                <Trash2 className="w-4 h-4" />
+                                                <Trash2 className="w-3.5 h-3.5" />
                                             </button>
                                         </div>
                                     </div>
@@ -830,53 +763,7 @@ function OrdersListPage() {
                 }
             </div >
 
-            {/* Pagination Controls */}
-            < div className="px-6 py-4 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4 bg-slate-50/50" >
-                <div className="text-sm text-slate-500">
-                    Affichage de {Math.min(filteredOrders.length, (currentPage - 1) * itemsPerPage + 1)} à {Math.min(filteredOrders.length, currentPage * itemsPerPage)} sur {filteredOrders.length}
-                </div>
 
-                <div className="flex items-center gap-4">
-                    <span className="text-sm text-slate-500">
-                        Page <span className="font-bold text-slate-800">{currentPage}</span> sur <span className="font-bold text-slate-800">{totalPages || 1}</span>
-                    </span>
-
-                    <div className="flex items-center bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-                        <button
-                            onClick={() => setCurrentPage(1)}
-                            disabled={currentPage === 1}
-                            className="p-2 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed border-r border-slate-200 transition-colors"
-                            title="Première page"
-                        >
-                            <ChevronFirst className="w-4 h-4 text-slate-600" />
-                        </button>
-                        <button
-                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                            disabled={currentPage === 1}
-                            className="p-2 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed border-r border-slate-200 transition-colors"
-                            title="Page précédente"
-                        >
-                            <ChevronLeft className="w-4 h-4 text-slate-600" />
-                        </button>
-                        <button
-                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                            disabled={currentPage === totalPages || totalPages === 0}
-                            className="p-2 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed border-r border-slate-200 transition-colors"
-                            title="Page suivante"
-                        >
-                            <ChevronRight className="w-4 h-4 text-slate-600" />
-                        </button>
-                        <button
-                            onClick={() => setCurrentPage(totalPages)}
-                            disabled={currentPage === totalPages || totalPages === 0}
-                            className="p-2 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            title="Dernière page"
-                        >
-                            <ChevronLast className="w-4 h-4 text-slate-600" />
-                        </button>
-                    </div>
-                </div>
-            </div >
         </section >
     );
 }
