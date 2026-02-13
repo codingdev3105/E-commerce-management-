@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getOrders, deleteOrder, updateOrder, sendToNoest, getValidationRules } from '../services/api';
-import { Search, Eye, Truck, Home, RefreshCw, Trash2, Pencil, Send, ChevronLeft, ChevronRight, ChevronFirst, ChevronLast, Phone, FileDown, FileText } from 'lucide-react';
+import { Search, Eye, Truck, Home, RefreshCw, Trash2, Pencil, Send, ChevronLeft, ChevronRight, ChevronFirst, ChevronLast, Phone, FileDown, FileText, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUI } from '../context/UIContext';
 import { useAppData } from '../context/AppDataContext';
@@ -10,6 +10,20 @@ import { getNoestWilayas, getNoestCommunes, getNoestDesks } from '../services/ap
 
 import OrderDetailsPage from './OrderDetailsPage';
 import EditOrderPage from './EditOrderPage';
+
+// Utility to safely handle any data type for rendering and searching
+const safeString = (val) => {
+    if (val === null || val === undefined) return "";
+    if (typeof val === 'string') return val;
+    if (typeof val === 'object') {
+        try {
+            return JSON.stringify(val);
+        } catch (e) {
+            return "[Objet]";
+        }
+    }
+    return String(val);
+};
 
 function OrdersListPage() {
     const [orders, setOrders] = useState([]);
@@ -45,8 +59,24 @@ function OrdersListPage() {
         setLoading(true);
         try {
             const data = await getOrders();
-            setOrders(data);
-            setSelectedOrders([]); // Reset selection on refresh
+            // Data Normalization: Force fields to expected types early
+            const normalized = (data || []).map(o => ({
+                ...o,
+                reference: safeString(o.reference),
+                client: safeString(o.client),
+                phone: safeString(o.phone),
+                phone2: safeString(o.phone2),
+                state: safeString(o.state || 'Nouvelle'),
+                date: safeString(o.date),
+                address: safeString(o.address),
+                commune: safeString(o.commune),
+                wilaya: safeString(o.wilaya),
+                amount: safeString(o.amount),
+                isStopDesk: !!o.isStopDesk,
+                isExchange: !!o.isExchange
+            }));
+            setOrders(normalized);
+            setSelectedOrders([]);
         } catch (error) {
             console.error("Failed to fetch orders", error);
             toast.error("Erreur lors du chargement des commandes");
@@ -124,76 +154,68 @@ function OrdersListPage() {
         }
     };
 
-    const filteredOrders = orders.filter(order => {
-        if (statusFilter !== 'Tous' && (order.state || 'Inconnu') !== statusFilter) {
-            return false;
-        }
+    const wilayaMap = useMemo(() => {
+        const map = {};
+        (wilayas || []).forEach(w => {
+            if (w && w.code) map[String(w.code)] = w.nom;
+        });
+        return map;
+    }, [wilayas]);
 
-        if (!filterText) return true;
+    const filteredOrders = useMemo(() => {
+        const query = (filterText || "").toLowerCase().trim();
 
-        const text = filterText.toLowerCase().trim();
+        return (orders || []).filter(order => {
+            // 1. Status Filter
+            if (statusFilter !== 'Tous' && order.state !== statusFilter) {
+                return false;
+            }
 
-        // ----- 1. CONDITIONS SPÉCIALES -----
-        if (text === "domicile") {
-            return order.isStopDesk === false;
-        }
+            if (!query) return true;
 
-        if (text === "stopdesk") {
-            return order.isStopDesk === true;
-        }
+            // 2. Special keywords
+            if (query === "domicile") return !order.isStopDesk;
+            if (query === "stopdesk") return order.isStopDesk;
 
-        // ----- 2. NORMALISATION -----
-        const reference = (order.reference || "").toLowerCase();
-        const client = (order.client || "").toLowerCase();
-        const phone = (order.phone || "").toLowerCase();
-        const phone2 = (order.phone2 || "").toLowerCase();
-        const state = (order.state || "").toLowerCase();
-        const date = (order.date || "").toLowerCase();
-        const address = (order.address || "").toLowerCase();
-        const commune = (order.commune || "").toLowerCase();
-        const wilaya = (order.wilaya || "").toLowerCase();
+            // 3. Multi-field search
+            // Since data is normalized, we can safely use includes
+            const productText = Array.isArray(order.product)
+                ? order.product.map(p => safeString(p)).join(" ").toLowerCase()
+                : safeString(order.product).toLowerCase();
 
-        // ----- 3. PRODUITS -----
-        let productText = "";
+            return (
+                order.reference.toLowerCase().includes(query) ||
+                order.client.toLowerCase().includes(query) ||
+                order.phone.toLowerCase().includes(query) ||
+                order.phone2.toLowerCase().includes(query) ||
+                order.state.toLowerCase().includes(query) ||
+                order.date.toLowerCase().includes(query) ||
+                order.address.toLowerCase().includes(query) ||
+                order.commune.toLowerCase().includes(query) ||
+                order.wilaya.toLowerCase().includes(query) ||
+                productText.includes(query)
+            );
+        });
+    }, [orders, filterText, statusFilter]);
 
-        if (Array.isArray(order.product)) {
-            // Liste → on convertit en texte
-            productText = order.product
-                .map(p => (typeof p === "string" ? p : JSON.stringify(p)))
-                .join(" ")
-                .toLowerCase();
-        } else if (typeof order.product === "string") {
-            productText = order.product.toLowerCase();
-        } else if (typeof order.product === "object" && order.product !== null) {
-            productText = JSON.stringify(order.product).toLowerCase();
-        }
-
-        // ----- 4. FILTRAGE -----
-        return (
-            reference.includes(text) ||
-            client.includes(text) ||
-            phone.includes(text) ||
-            phone2.includes(text) ||
-            state.includes(text) ||
-            date.includes(text) ||
-            address.includes(text) ||
-            commune.includes(text) ||
-            wilaya.includes(text) ||
-            productText.includes(text)
-        );
-    });
-
-    // No Pagination - Show All
     const paginatedOrders = filteredOrders;
 
-    // Status counts
-    const statusCounts = orders.reduce((acc, order) => {
-        const s = order.state || 'Inconnu';
-        acc[s] = (acc[s] || 0) + 1;
-        return acc;
-    }, { 'Tous': orders.length });
+    const statusCounts = useMemo(() => {
+        const counts = { 'Tous': (orders || []).length };
+        (orders || []).forEach(order => {
+            const s = order.state || 'Inconnu';
+            counts[s] = (counts[s] || 0) + 1;
+        });
+        return counts;
+    }, [orders]);
 
-    const availableStatuses = ['Tous', ...Object.keys(statusCounts).filter(s => s !== 'Tous')];
+    const availableStatuses = useMemo(() => {
+        try {
+            return ['Tous', ...Object.keys(statusCounts || {}).filter(s => s !== 'Tous')];
+        } catch (e) {
+            return ['Tous'];
+        }
+    }, [statusCounts]);
 
     // Selection Logic
     const toggleSelectAll = (e) => {
@@ -338,13 +360,13 @@ function OrdersListPage() {
     };
 
     const getStateColor = (state) => {
-        const s = (state || '');
+        const s = safeString(state);
         if (s.includes('Nouvelle')) return 'bg-blue-100 text-blue-700 border border-blue-200';
         if (s.includes('Annuler') || s.includes('Retour')) return 'bg-red-100 text-red-700 border border-red-200';
         if (s.includes('Livré') || s.includes('Encaissé')) return 'bg-green-100 text-green-700 border border-green-200';
         if (s.includes('En Livraison')) return 'bg-orange-100 text-orange-700 border border-orange-200';
         if (s.includes('En Hub') || s.includes('Validé') || s.includes('Uploadé')) return 'bg-cyan-100 text-cyan-700 border border-cyan-200';
-        if (s.includes('System') || s.includes('Envoyer')) return 'bg-amber-100 text-amber-700 border border-amber-200'; // Changed to amber for distinction
+        if (s.includes('System') || s.includes('Envoyer')) return 'bg-amber-100 text-amber-700 border border-amber-200';
         if (s.includes('Atelier')) return 'bg-purple-100 text-purple-700 border border-purple-200';
         return 'bg-gray-100 text-gray-700 border border-gray-200';
     };
@@ -435,7 +457,7 @@ function OrdersListPage() {
                             className="w-full md:w-auto text-sm border-slate-200 rounded-md focus:border-blue-500 focus:ring-blue-500"
                         >
                             <option value="">Modifier l'état...</option>
-                            {availableStates.map(state => (
+                            {(availableStates || []).map(state => (
                                 <option key={state} value={state}>{state}</option>
                             ))}
                         </select>
@@ -523,7 +545,7 @@ function OrdersListPage() {
                                     <td className="px-3 py-2">
                                         <div className="flex items-center gap-2">
                                             <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-[10px]">
-                                                {order.client?.charAt(0)}
+                                                {order.client.charAt(0) || '?'}
                                             </div>
                                             <div>
                                                 <div className="text-xs font-bold text-slate-700 truncate max-w-[120px]" title={order.client}>{order.client}</div>
@@ -539,13 +561,15 @@ function OrdersListPage() {
                                         </div>
                                     </td>
                                     <td className="px-3 py-2">
-                                        <div className="text-xs text-slate-700 min-w-[200px] whitespace-normal" title={typeof order.product === 'string' ? order.product : ''}>
-                                            <span className="font-medium">{order.product || <span className="text-slate-400 italic">Non spécifié</span>}</span>
+                                        <div className="text-xs text-slate-700 min-w-[200px] whitespace-normal">
+                                            <span className="font-medium">
+                                                {typeof order.product === 'object' ? JSON.stringify(order.product) : (order.product || <span className="text-slate-400 italic">Non spécifié</span>)}
+                                            </span>
                                         </div>
                                     </td>
                                     <td className="px-3 py-2">
                                         <div className="flex flex-col text-[11px] leading-tight">
-                                            <span className="font-medium text-slate-700 truncate max-w-[120px]">{wilayas.find(w => w.code == order.wilaya)?.nom || ''} {order.wilaya}</span>
+                                            <span className="font-medium text-slate-700 truncate max-w-[120px]">{wilayaMap[order.wilaya] || ''} {order.wilaya}</span>
                                             {order.commune && <span className="text-slate-500 text-[10px]">{order.commune}</span>}
                                         </div>
                                     </td>
@@ -682,8 +706,8 @@ function OrdersListPage() {
                                             </div>
                                         </div>
 
-                                        <div className="col-span-2 text-slate-600 truncate bg-slate-50 px-2 py-1 rounded" title={order.product}>
-                                            {order.product || <span className="text-slate-400 italic">Non spécifié</span>}
+                                        <div className="col-span-2 text-slate-600 truncate bg-slate-50 px-2 py-1 rounded">
+                                            {typeof order.product === 'object' ? JSON.stringify(order.product) : (order.product || <span className="text-slate-400 italic">Non spécifié</span>)}
                                         </div>
                                     </div>
 

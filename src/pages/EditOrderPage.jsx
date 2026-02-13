@@ -32,7 +32,8 @@ function EditOrderPage({ orderId, onBack }) {
         stationCode: '',
         stationName: '',
         isExchange: false,
-        state: ''
+        state: '',
+        stationExpedition: ''
     });
     const [submitting, setSubmitting] = useState(false);
 
@@ -43,7 +44,7 @@ function EditOrderPage({ orderId, onBack }) {
     const fetchOrderDetails = async () => {
         setLoadingOrder(true);
         try {
-            const orders = await getOrders();
+            const orders = (await getOrders()) || [];
             const order = orders.find(o => o.rowId == id);
             if (order) {
                 setOrderData({
@@ -55,14 +56,15 @@ function EditOrderPage({ orderId, onBack }) {
                     wilaya: order.wilaya,
                     commune: order.isStopDesk ? '' : (order.commune || ''),
                     amount: order.amount,
-                    product: order.product || '',
-                    note: order.note || '',
+                    product: typeof order.product === 'object' ? JSON.stringify(order.product) : (order.product || ''),
+                    note: typeof order.note === 'object' ? JSON.stringify(order.note) : (order.note || ''),
                     isStopDesk: order.isStopDesk,
                     stationCode: order.isStopDesk ? (order.stationCode || '') : '',
                     stationName: order.isStopDesk ? order.address : '',
                     isExchange: order.isExchange,
                     state: order.state,
-                    date: order.date
+                    date: order.date,
+                    stationExpedition: order.stationExpedition || '35C'
                 });
             } else {
                 toast.error("Commande introuvable");
@@ -371,8 +373,18 @@ function EditOrderPage({ orderId, onBack }) {
                             placeholder="Détails du produit..." />
                     </div>
 
+                    {/* Station Expedition */}
+                    <div className="lg:col-span-1 space-y-1.5">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Station Expédition</label>
+                        <select required name="stationExpedition" value={orderData.stationExpedition} onChange={handleInputChange} disabled={!canEditFields}
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium disabled:opacity-60">
+                            <option value="35C">35C</option>
+                            <option value="35D">35D</option>
+                        </select>
+                    </div>
+
                     {/* Note */}
-                    <div className="lg:col-span-4 space-y-1.5">
+                    <div className="lg:col-span-3 space-y-1.5">
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Remarque (Optionnel)</label>
                         <input type="text" name="note" value={orderData.note} onChange={handleInputChange} disabled={!canEditFields}
                             className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed"

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getOrders, getNoestTrackingInfo, updateMessageStatus, updateOrder } from '../services/api';
 import { Search, RefreshCw, Truck, MapPin, User, Calendar, X, History, Phone, Home } from 'lucide-react';
 import { useUI } from '../context/UIContext';
@@ -36,13 +36,13 @@ function NoestTrackingPage() {
         setLoading(true);
         try {
             const sheetOrders = await getOrders();
-            console.log("Sheet Orders fetched:", sheetOrders.length);
+            // console.log("Sheet Orders fetched:", sheetOrders.length);
 
             // Filter all orders that have a tracking number (ignoring 'System' state check)
             const trackedOrders = sheetOrders.filter(o => o.tracking && String(o.tracking).trim().length > 5);
             const trackingsToFetch = trackedOrders.map(o => o.tracking);
 
-            console.log("Trackings to fetch from Noest:", trackingsToFetch.length);
+            // console.log("Trackings to fetch from Noest:", trackingsToFetch.length);
 
             if (trackingsToFetch.length === 0) {
                 setOrders([]);
@@ -51,7 +51,7 @@ function NoestTrackingPage() {
             }
 
             const result = await getNoestTrackingInfo(trackingsToFetch);
-            console.log("Noest results received:", Object.keys(result).length);
+            console.log("Noest results received:", Object.keys(result));
 
             const parseCustomDate = (dateStr) => {
                 if (!dateStr) return new Date(0);
@@ -83,7 +83,7 @@ function NoestTrackingPage() {
                 })).sort((a, b) => b.parsedDate - a.parsedDate);
 
                 const latest = sortedActivities[0] || {};
-                const wilayaName = wilayas.find(w => w.code == info.wilaya_id)?.nom || '';
+                const wilayaName = (wilayas || []).find(w => w.code == info.wilaya_id)?.nom || '';
                 const isStopDesk = Number(info.stop_desk) === 1;
 
                 const category = getCategoryFromEvent(latest.event_key, latest.event || info.current_status, isStopDesk);
@@ -136,7 +136,8 @@ function NoestTrackingPage() {
                     remarque: remarque,
                     is_stopdesk: isStopDesk,
                     isMessageSent: isMessageSent,
-                    rowId: rowId
+                    rowId: rowId,
+                    stationExpedition: localOrder?.stationExpedition
                 };
             });
 
@@ -206,45 +207,46 @@ function NoestTrackingPage() {
 
     const ORDERED_CATEGORIES = ['all', 'Uploadé', 'Validé', 'En Hub', 'En Livraison', 'Suspendu', 'Livré', 'Retour', 'Encaissé', 'Autres'];
 
-    const categorizedOrders = () => {
-        const filtered = orders.filter(order => {
-            const text = filterText.toLowerCase();
+    const displayedOrders = useMemo(() => {
+        const filtered = (orders || []).filter(order => {
+            const text = String(filterText || "").toLowerCase();
             return (
-                (order.reference?.toLowerCase() || '').includes(text) ||
-                (order.tracking?.toLowerCase() || '').includes(text) ||
-                (order.client?.toLowerCase() || '').includes(text) ||
-                (order.phone?.toLowerCase() || '').includes(text) ||
-                (order.wilaya_name?.toLowerCase() || '').includes(text)
+                String(order.reference || "").toLowerCase().includes(text) ||
+                String(order.tracking || "").toLowerCase().includes(text) ||
+                String(order.client || "").toLowerCase().includes(text) ||
+                String(order.phone || "").toLowerCase().includes(text) ||
+                String(order.wilaya_name || "").toLowerCase().includes(text)
             );
         });
 
         if (activeTab === 'all') return filtered;
         return filtered.filter(order => order.category === activeTab);
-    };
+    }, [orders, filterText, activeTab]);
 
-    // Calculate counts for tabs based on CATEGORY
-    const tabCounts = orders.reduce((acc, order) => {
-        const cat = order.category || 'Autres';
-        acc[cat] = (acc[cat] || 0) + 1;
-        acc.all = (acc.all || 0) + 1;
-        return acc;
-    }, { all: 0 });
+    const tabCounts = useMemo(() => {
+        return (orders || []).reduce((acc, order) => {
+            const cat = order.category || 'Autres';
+            acc[cat] = (acc[cat] || 0) + 1;
+            acc.all = (acc.all || 0) + 1;
+            return acc;
+        }, { all: 0 });
+    }, [orders]);
 
-    const visibleTabs = ORDERED_CATEGORIES
-        .filter(cat => tabCounts[cat] > 0 || cat === 'all')
-        .map(cat => ({
-            id: cat,
-            label: cat === 'all' ? 'Tous' : cat,
-            count: tabCounts[cat] || 0
-        }));
-
-    const displayedOrders = categorizedOrders();
+    const visibleTabs = useMemo(() => {
+        return ORDERED_CATEGORIES
+            .filter(cat => tabCounts[cat] > 0 || cat === 'all')
+            .map(cat => ({
+                id: cat,
+                label: cat === 'all' ? 'Tous' : cat,
+                count: tabCounts[cat] || 0
+            }));
+    }, [tabCounts]);
 
     useEffect(() => {
-        if (activeTab !== 'all' && (tabCounts[activeTab] || 0) === 0 && !loading && orders.length > 0) {
+        if (activeTab !== 'all' && (tabCounts[activeTab] || 0) === 0 && !loading && (orders || []).length > 0) {
             setActiveTab('all');
         }
-    }, [tabCounts, activeTab, loading, orders.length]);
+    }, [tabCounts, activeTab, loading, (orders || []).length]);
 
     const [numColumns, setNumColumns] = useState(4);
 
@@ -472,9 +474,10 @@ function OrderDetailsModal({ order, onClose, onMessageSent }) {
                             <Truck className="w-5 h-5 text-blue-600" />
                             Détails de la commande
                         </h3>
-                        <div className="text-xs text-slate-500 mt-1 flex gap-2">
-                            <span className="font-mono bg-white px-1.5 rounded border border-slate-200">{order.reference}</span>
-                            <span className="font-mono bg-white px-1.5 rounded border border-slate-200">{order.tracking}</span>
+                        <div className="text-xs text-slate-500 mt-1 flex flex-wrap gap-2">
+                            <span className="font-mono bg-white px-1.5 rounded border border-slate-200">Ref: {order.reference}</span>
+                            <span className="font-mono bg-white px-1.5 rounded border border-slate-200">Track: {order.tracking}</span>
+                            <span className="font-mono bg-blue-50 text-blue-700 px-1.5 rounded border border-blue-100 italic">Exp: {order.stationExpedition || '-'}</span>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
@@ -653,8 +656,8 @@ function OrderCard({ order, onMessageSent }) {
 
                 {/* Ligne 2 : Produit - Téléphone */}
                 <div className="flex items-start justify-between gap-2 w-full text-xs">
-                    <span className="text-slate-600 font-medium line-clamp-2 leading-tight flex-1" title={order.produit}>
-                        {order.produit || <span className="italic text-slate-400">Produit non spécifié</span>}
+                    <span className="text-slate-600 font-medium line-clamp-2 leading-tight flex-1" title={typeof order.produit === 'string' ? order.produit : ''}>
+                        {typeof order.produit === 'object' ? JSON.stringify(order.produit) : (order.produit || <span className="italic text-slate-400">Produit non spécifié</span>)}
                     </span>
                     <span className="text-slate-500 font-mono whitespace-nowrap shrink-0 bg-slate-100 px-1 rounded ml-1">
                         {order.phone || '-'}
@@ -680,7 +683,7 @@ function OrderCard({ order, onMessageSent }) {
                                 <div className="text-slate-500 leading-tight">{order.commune}</div>
                                 {order.remarque && (
                                     <div className="text-slate-500 italic mt-1 text-[10px] bg-yellow-50 px-1.5 py-0.5 rounded border border-yellow-100 dark:text-slate-500">
-                                        Note: {order.remarque}
+                                        Note: {typeof order.remarque === 'object' ? JSON.stringify(order.remarque) : String(order.remarque || '')}
                                     </div>
                                 )}
                             </div>

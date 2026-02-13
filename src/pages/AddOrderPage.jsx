@@ -24,6 +24,7 @@ function AddOrderPage() {
         stationCode: '',
         stationName: '',
         isExchange: false,
+        stationExpedition: '35D', // Default to 35D
     });
     const [submitting, setSubmitting] = useState(false);
 
@@ -161,6 +162,7 @@ function AddOrderPage() {
                     stationCode: '',
                     stationName: '',
                     isExchange: false,
+                    stationExpedition: '35D',
                 };
             });
         } catch (error) {
@@ -224,7 +226,7 @@ function AddOrderPage() {
                         </div>
                     </div>
                     {/* Wilaya */}
-                    <div className={`space-y-1.5 ${newOrder.isStopDesk ? 'lg:col-span-2' : 'lg:col-span-1'}`}>
+                    <div className="lg:col-span-1 space-y-1.5">
                         <Combobox
                             label="Wilaya"
                             options={wilayas.map(w => ({ value: w.code, label: `${w.code} - ${w.nom}` }))}
@@ -235,7 +237,7 @@ function AddOrderPage() {
                     </div>
 
                     {/* Commune OR Stop Desk Station */}
-                    <div className={newOrder.isStopDesk ? 'lg:col-span-2' : 'lg:col-span-1'}>
+                    <div className="lg:col-span-1">
                         {!newOrder.isStopDesk ? (
                             <div className="space-y-1.5">
                                 <Combobox
@@ -249,16 +251,16 @@ function AddOrderPage() {
                             </div>
                         ) : (
                             <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1"><Truck className="w-3 h-3" /> Bureau Stop Desk</label>
+                                <label className="text-xs font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1"><Truck className="w-3 h-3" /> Stop Desk</label>
                                 <select required name="stationCode" value={newOrder.stationCode} onChange={handleInputChange} disabled={!newOrder.wilaya}
                                     className="w-full px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none font-medium">
-                                    <option value="">Choisir une station...</option>
+                                    <option value="">Station...</option>
                                     {availableStations.length > 0 ? (
                                         availableStations.map((s, idx) => (
                                             <option key={idx} value={s.code}>{s.code} - {s.name}</option>
                                         ))
                                     ) : (
-                                        <option disabled>Aucune station trouvée</option>
+                                        <option disabled>Aucune</option>
                                     )}
                                 </select>
                             </div>
@@ -267,16 +269,26 @@ function AddOrderPage() {
 
                     {/* Address (Only for Domicile) */}
                     {!newOrder.isStopDesk && (
-                        <div className="lg:col-span-2 space-y-1.5">
+                        <div className="lg:col-span-1 space-y-1.5">
                             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Adresse</label>
                             <div className="relative">
                                 <MapPin className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                                 <input required type="text" name="address" value={newOrder.address} onChange={handleInputChange}
-                                    className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                                    className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-medium"
                                     placeholder="Adresse de livraison" />
                             </div>
                         </div>
                     )}
+
+                    {/* Station Expedition */}
+                    <div className={`${newOrder.isStopDesk ? 'lg:col-span-2' : 'lg:col-span-1'} space-y-1.5`}>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Station Expédition</label>
+                        <select required name="stationExpedition" value={newOrder.stationExpedition} onChange={handleInputChange}
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-blue-700">
+                            <option value="35C">35C</option>
+                            <option value="35D">35D</option>
+                        </select>
+                    </div>
 
                     {/* Line 3: Product, Amount, Note, Button */}
                     {/* Product */}

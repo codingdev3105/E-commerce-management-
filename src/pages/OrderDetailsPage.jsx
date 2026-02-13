@@ -105,7 +105,7 @@ function OrderDetailsPage({ orderId, onBack }) {
                     <div className="space-y-3">
                         <div>
                             <div className="text-xs text-slate-400">Wilaya</div>
-                            <div className="font-medium text-slate-800">{wilayas.find(w => w.code == order.wilaya)?.nom || ''} {order.wilaya}</div>
+                            <div className="font-medium text-slate-800">{(wilayas || []).find(w => w.code == order.wilaya)?.nom || ''} {order.wilaya}</div>
                         </div>
                         {order.isStopDesk ? (
                             <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
@@ -138,8 +138,13 @@ function OrderDetailsPage({ orderId, onBack }) {
                     </h3>
                     <div className="space-y-3">
                         <div>
-                            <div className="text-xs text-slate-400">Produit</div>
-                            <div className="font-medium text-slate-800">{order.product || '-'}</div>
+                            <div className="font-medium text-slate-800">
+                                {typeof order.product === 'object' ? JSON.stringify(order.product) : (order.product || '-')}
+                            </div>
+                        </div>
+                        <div>
+                            <div className="text-xs text-slate-400">Station Expédition</div>
+                            <div className="font-medium text-blue-700">{order.stationExpedition || '-'}</div>
                         </div>
                         <div className="pt-2 border-t border-slate-100">
                             <div className="text-xs text-slate-400">Montant Total</div>
