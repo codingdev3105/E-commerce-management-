@@ -1,11 +1,12 @@
 import React from 'react';
-import { Search, X, Truck, RefreshCw, FileText } from 'lucide-react';
+import { Search, X, Truck, RefreshCw, FileText, ArrowRightLeft } from 'lucide-react';
 
 export default function OrdersFilterBar({
     filteredCount,
     filterText,
     setFilterText,
     onRefreshNoest,
+    onSyncNoest,
     onRefreshOrders,
     onExportPDF,
     availableStatuses,
@@ -45,6 +46,13 @@ export default function OrdersFilterBar({
                         title="Actualiser Suivi Noest"
                     >
                         <Truck className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={onSyncNoest}
+                        className="flex items-center justify-center h-10 w-10 bg-white border border-slate-200 text-green-600 rounded-lg hover:bg-green-50 hover:border-green-300 transition-all shadow-sm"
+                        title="Synchroniser avec Noest"
+                    >
+                        <ArrowRightLeft className="w-4 h-4" />
                     </button>
 
                     <button

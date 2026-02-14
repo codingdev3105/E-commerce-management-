@@ -1,12 +1,15 @@
 import { useNavigate, Outlet, Link, useLocation } from 'react-router-dom';
-import { LogOut, Shield, Plus, List, LayoutDashboard, BarChart as BarChartIcon, Truck, Map } from 'lucide-react';
+import { LogOut, Plus, List, BarChart as BarChartIcon, Truck, Map } from 'lucide-react';
+import { useAppData } from '../context/AppDataContext';
 
 function MainLayout() {
     const navigate = useNavigate();
     const location = useLocation();
+    const { clearData } = useAppData();
     const role = localStorage.getItem('role') || 'User';
 
     const handleLogout = () => {
+        clearData();
         localStorage.removeItem('token');
         localStorage.removeItem('role');
         navigate('/'); // Back to login which is now root

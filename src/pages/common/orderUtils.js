@@ -11,14 +11,34 @@ export const safeString = (val) => {
     return String(val);
 };
 
+export const STATUS_COLORS = {
+    'Nouvelle': '#bfe1f6',
+    'Atelier': '#e6cff2',
+    'Finance': '#11734b',
+    'En traitement': '#ff904f',
+    'Annuler': '#fffd12',
+    'Retour': '#ff0000',
+    'livré': '#10b981',
+    'En livraison': '#4898fe',
+    'En Hub': '#4898fe',
+    'Upload': '#ffbb83',
+    'Suspendu': '#ff8991',
+};
+
 export const getStateColor = (state) => {
-    const s = safeString(state);
-    if (s.includes('Nouvelle')) return 'bg-blue-100 text-blue-700 border border-blue-200';
-    if (s.includes('Annuler') || s.includes('Retour')) return 'bg-red-100 text-red-700 border border-red-200';
-    if (s.includes('Livré') || s.includes('Encaissé')) return 'bg-green-100 text-green-700 border border-green-200';
-    if (s.includes('En Livraison')) return 'bg-orange-100 text-orange-700 border border-orange-200';
-    if (s.includes('En Hub') || s.includes('Validé') || s.includes('Uploadé')) return 'bg-cyan-100 text-cyan-700 border border-cyan-200';
-    if (s.includes('System') || s.includes('Envoyer')) return 'bg-amber-100 text-amber-700 border border-amber-200';
-    if (s.includes('Atelier')) return 'bg-purple-100 text-purple-700 border border-purple-200';
-    return 'bg-gray-100 text-gray-700 border border-gray-200';
+    const s = safeString(state).toLowerCase();
+
+    if (s.includes('nouvelle')) return 'bg-[#bfe1f6] text-blue-900 border-blue-200';
+    if (s.includes('atelier')) return 'bg-[#e6cff2] text-purple-900 border-purple-200';
+    if (s.includes('livraison')) return 'bg-[#4898fe] text-white border-blue-600';
+    if (s.includes('livr') || s.includes('encaiss')) return 'bg-[#10b981] text-white border-green-600';
+    if (s.includes('finance')) return 'bg-[#11734b] text-white border-green-800';
+    if (s.includes('hub')) return 'bg-[#4898fe] text-white border-blue-600';
+    if (s.includes('upload')) return 'bg-[#ffbb83] text-orange-900 border-orange-300';
+    if (s.includes('suspendu') || s.includes('suspondu')) return 'bg-[#ff8991] text-white border-red-400';
+    if (s.includes('annul')) return 'bg-[#fffd12] text-slate-900 border-yellow-400';
+    if (s.includes('retour')) return 'bg-[#ff0000] text-white border-red-800';
+    if (s.includes('traitement')) return 'bg-[#ff904f] text-white border-orange-600';
+
+    return 'bg-slate-100 text-slate-700 border-slate-200';
 };

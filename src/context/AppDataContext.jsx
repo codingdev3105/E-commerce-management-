@@ -35,13 +35,23 @@ export const AppDataProvider = ({ children }) => {
     });
     const [loading, setLoading] = useState(false);
 
+    const clearData = () => {
+        setData({
+            wilayas: [],
+            communes: [],
+            desks: [],
+            orders: [],
+            fees: {}
+        });
+    };
+
     // Lazy fetch function exposed to consumers
     const fetchLocationsData = async () => {
         // If data is already populated, don't re-fetch
         if (data.wilayas.length > 0) {
             return;
         }
-
+        // 211,800 - 34,900
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
@@ -120,7 +130,7 @@ export const AppDataProvider = ({ children }) => {
     };
 
     return (
-        <AppDataContext.Provider value={{ ...data, loading, fetchLocationsData, fetchOrders, setOrders }}>
+        <AppDataContext.Provider value={{ ...data, loading, fetchLocationsData, fetchOrders, setOrders, clearData }}>
             {children}
         </AppDataContext.Provider>
     );

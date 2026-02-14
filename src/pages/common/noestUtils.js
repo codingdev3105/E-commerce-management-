@@ -29,3 +29,16 @@ export const formatNoestDate = (dateObj) => {
     const pad = (n) => n.toString().padStart(2, '0');
     return `${pad(dateObj.getDate())}-${pad(dateObj.getMonth() + 1)}-${dateObj.getFullYear()} ${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}`;
 };
+export const getNoestStatusStyle = (status, statusClass) => {
+    if (statusClass) {
+        if (statusClass.includes('success')) return 'text-green-700 bg-green-50 border-green-200';
+        if (statusClass.includes('danger')) return 'text-red-700 bg-red-50 border-red-200';
+        if (statusClass.includes('warning')) return 'text-orange-700 bg-orange-50 border-orange-200';
+        if (statusClass.includes('info') || statusClass.includes('primary')) return 'text-blue-700 bg-blue-50 border-blue-200';
+    }
+    const s = (status || '').toLowerCase();
+    if (s.includes('livré') || s.includes('delivered')) return 'text-green-700 bg-green-50 border-green-200';
+    if (s.includes('retour') || s.includes('returned') || s.includes('echoué')) return 'text-red-700 bg-red-50 border-red-200';
+    if (s.includes('cours') || s.includes('livraison')) return 'text-orange-700 bg-orange-50 border-orange-200';
+    return 'text-slate-700 bg-slate-100 border-slate-200';
+};

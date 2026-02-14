@@ -1,5 +1,6 @@
 import { Eye, Truck, Home, RefreshCw, Trash2, Pencil, Send, Phone, MapPin, Check, Box, StickyNote, Calendar } from 'lucide-react';
 import { getStateColor } from '../../common/orderUtils';
+import { getNoestStatusStyle } from '../../common/noestUtils';
 
 export default function MobileOrderCard({
     order,
@@ -35,9 +36,11 @@ export default function MobileOrderCard({
                             </div>
                         </div>
                     </div>
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border whitespace-nowrap ${getStateColor(order.state)}`}>
-                        {order.state || 'Nouveau'}
-                    </span>
+                    <div className="flex flex-col items-end gap-1">
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border whitespace-nowrap ${getStateColor(order.state)}`}>
+                            {order.state || 'inconnu'}
+                        </span>
+                    </div>
                 </div>
 
                 {/* Sub-Header: Client, Phone */}
@@ -188,9 +191,10 @@ export default function MobileOrderCard({
                                     {(order.activities || []).map((act, idx) => (
                                         <div key={idx} className="relative">
                                             <div className={`absolute -left-[16.5px] top-1 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm ${idx === 0 ? 'bg-blue-600' : 'bg-slate-300'}`}></div>
-                                            <div className="flex flex-col">
+                                            <div className="flex flex-col gap-1">
                                                 <span className={`text-xs font-bold leading-tight ${idx === 0 ? 'text-blue-700' : 'text-slate-700'}`}>{act.event}</span>
                                                 <span className="text-[10px] text-slate-400 font-mono">{act.date}</span>
+                                                {act.content && <p className="text-xs text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 mt-1 italic">"{act.content}"</p>}
                                             </div>
                                         </div>
                                     ))}

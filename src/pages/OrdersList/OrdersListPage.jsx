@@ -39,6 +39,46 @@ function OrdersListPage() {
     const [expandedOrderId, setExpandedOrderId] = useState(null);
     const [noestData, setNoestData] = useState({});
 
+    // --- Noest Sync Logic ---
+    const handleSyncNoest = async () => {
+        const updatesToSync = orders.filter(o => {
+            const tr = noestData[o.tracking];
+            return tr && tr.category && o.state !== tr.category;
+        }).map(o => ({
+            rowId: o.rowId,
+            orderAtIndex: o,
+            newState: noestData[o.tracking].category
+        }));
+
+        if (updatesToSync.length === 0) {
+            toast.info("Tout est déjà synchronisé ou aucune donnée de suivi n'est chargée.");
+            return;
+        }
+
+        const confirmed = await confirm({
+            title: "Synchroniser les états ?",
+            message: `Voulez-vous mettre à jour l'état de ${updatesToSync.length} commandes selon le suivi Noest ?`,
+            type: "confirm",
+            confirmText: "Oui, synchroniser",
+            cancelText: "Annuler"
+        });
+
+        if (!confirmed) return;
+
+        try {
+            const updatePromises = updatesToSync.map(update => {
+                const payload = { ...update.orderAtIndex, state: update.newState };
+                return updateOrder(update.rowId, payload);
+            });
+
+            await Promise.all(updatePromises);
+            toast.success(`${updatesToSync.length} commandes synchronisées !`);
+            fetchOrders(true);
+        } catch (error) {
+            console.error(error);
+            toast.error("Erreur lors de la synchronisation");
+        }
+    };
     // --- Noest Tracking Logic ---
     const fetchNoestTracking = async () => {
         const trackedOrders = orders.filter(o => o.tracking && String(o.tracking).trim().length > 5);
@@ -49,11 +89,9 @@ function OrdersListPage() {
             return;
         }
 
-        const loadingToast = toast.loading(`Actualisation du suivi Noest (${trackingsToFetch.length})...`);
-
         try {
             const result = await getNoestTrackingInfo(trackingsToFetch);
-
+            console.log(result);
             const newMap = {};
             Object.values(result).forEach(item => {
                 const info = item.OrderInfo || {};
@@ -73,20 +111,18 @@ function OrdersListPage() {
                     driver_name: info.driver_name,
                     driver_phone: info.driver_phone,
                     status: latest.event || info.current_status || 'En attente',
+                    category: category,
                     status_class: latest['badge-class'],
                     activities: sortedActivities.map(a => ({ ...a, date: formatNoestDate(a.parsedDate) })),
-                    // Update other potentially changed fields
                     wilaya_name: wilayaName,
-                    amount: info.montant, // Noest amount might differ
+                    amount: info.montant,
                 };
             });
 
             setNoestData(prev => ({ ...prev, ...newMap }));
-            toast.dismiss(loadingToast);
             toast.success("Suivi Noest actualisé !");
         } catch (error) {
             console.error(error);
-            toast.dismiss(loadingToast);
             toast.error("Erreur lors de l'actualisation Noest");
         }
     };
@@ -103,6 +139,17 @@ function OrdersListPage() {
         // Initial fetch (lazy load)
         if (fetchOrders) fetchOrders();
     }, []);
+
+    // Auto-load Noest tracking data when orders are loaded
+    useEffect(() => {
+        if (!loading && orders.length > 0) {
+            const hasTracking = orders.some(o => o.tracking && String(o.tracking).trim().length > 5);
+            if (hasTracking && Object.keys(noestData).length === 0) {
+                // Only auto-load if we don't have Noest data yet
+                fetchNoestTracking();
+            }
+        }
+    }, [loading, orders]);
 
     const handleDelete = async (id, ref) => {
         const confirmed = await confirm({
@@ -162,7 +209,7 @@ function OrdersListPage() {
 
         if (confirmed) {
             try {
-                console.log(rowId);
+                //console.log(rowId);
                 const result = await sendToNoest(rowId);
                 toast.success(`Commande envoyée! Tracking: ${result.tracking} `);
                 fetchOrders(true); // Refresh to show updated state
@@ -435,6 +482,7 @@ function OrdersListPage() {
                     filterText={filterText}
                     setFilterText={setFilterText}
                     onRefreshNoest={fetchNoestTracking}
+                    onSyncNoest={handleSyncNoest}
                     onRefreshOrders={async () => {
                         await fetchOrders(true);
                         toast.success("Liste actualisée");

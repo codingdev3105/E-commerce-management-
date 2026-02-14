@@ -1,6 +1,7 @@
 import React from 'react';
 import { Eye, Truck, Home, Pencil, Send, Trash2 } from 'lucide-react';
 import { getStateColor } from '../../common/orderUtils';
+import { getNoestStatusStyle } from '../../common/noestUtils';
 
 export default function OrdersTable({
     orders,
@@ -128,9 +129,11 @@ export default function OrdersTable({
                                     <div className="text-sm font-bold text-slate-800 whitespace-nowrap">{order.amount} <span className="text-xs font-semibold text-slate-500">DA</span></div>
                                 </td>
                                 <td className="px-3 py-3 text-center">
-                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold shadow-sm border ${getStateColor(order.state)}`}>
-                                        {order.state}
-                                    </span>
+                                    <div className="flex flex-col items-center gap-1.5">
+                                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold shadow-sm border ${getStateColor(order.state)}`}>
+                                            {order.state}
+                                        </span> 
+                                    </div>
                                 </td>
                                 <td className="px-3 py-2 text-center">
                                     <div className="flex items-center justify-center gap-1">
