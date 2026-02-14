@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './LoginPage';
 import MainLayout from './components/MainLayout';
 import AddOrderPage from './pages/AddOrderPage';
-import OrdersListPage from './pages/OrdersListPage';
+import OrdersListPage from './pages/OrdersList/OrdersListPage';
 import OrderDetailsPage from './pages/OrderDetailsPage';
 import StatisticsPage from './pages/StatisticsPage';
 import EditOrderPage from './pages/EditOrderPage';

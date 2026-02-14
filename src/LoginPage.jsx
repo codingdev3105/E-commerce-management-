@@ -10,7 +10,7 @@ function LoginPage() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
-    const { refreshData } = useAppData();
+    // const { refreshData } = useAppData(); // Removed for lazy loading
     const { refreshStates } = useStates();
 
     const handleLogin = async (e) => {
@@ -24,8 +24,8 @@ function LoginPage() {
             localStorage.setItem('token', data.token);
             localStorage.setItem('role', data.role);
 
-            // Refresh global data now that we have a token
-            await Promise.all([refreshData(), refreshStates()]);
+            // Refresh states only. Locations data is lazy loaded.
+            await Promise.all([refreshStates()]);
 
             navigate('/statistique');
         } catch (err) {

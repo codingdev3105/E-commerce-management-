@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { getOrders } from '../services/api';
-import { BarChart, ShoppingBag, Truck, Activity, XCircle, CheckCircle } from 'lucide-react';
+import { useAppData } from '../context/AppDataContext';
+import { useUI } from '../context/UIContext';
+import { BarChart, ShoppingBag, Truck, Activity, XCircle, CheckCircle, RefreshCw } from 'lucide-react';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
     PieChart, Pie, Cell, Legend,
@@ -8,22 +9,25 @@ import {
 } from 'recharts';
 
 function StatisticsPage() {
-    const [orders, setOrders] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const { orders, fetchOrders, loading } = useAppData();
+    const { toast } = useUI();
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     useEffect(() => {
-        async function fetchData() {
-            try {
-                const data = await getOrders();
-                setOrders(data);
-            } catch (err) {
-                console.error("Failed to load stats data", err);
-            } finally {
-                setLoading(false);
-            }
+        fetchOrders(); // This will use cached data if available
+    }, [fetchOrders]);
+
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        try {
+            await fetchOrders(true); // Force refresh
+            toast.success("Données actualisées !");
+        } catch (error) {
+            toast.error("Erreur lors de l'actualisation.");
+        } finally {
+            setIsRefreshing(false);
         }
-        fetchData();
-    }, []);
+    };
 
     const stats = useMemo(() => {
         if (!orders.length) return null;
@@ -118,11 +122,21 @@ function StatisticsPage() {
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
             {/* Header */}
-            <div>
-                <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                    <Activity className="w-6 h-6 text-blue-600" /> Tableau de Bord
-                </h2>
-                <p className="text-slate-500 mt-1">Vue d'ensemble et analytique détaillée</p>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                        <Activity className="w-6 h-6 text-blue-600" /> Tableau de Bord
+                    </h2>
+                    <p className="text-slate-500 mt-1">Vue d'ensemble et analytique détaillée</p>
+                </div>
+                <button
+                    onClick={handleRefresh}
+                    disabled={isRefreshing || loading}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm disabled:opacity-50"
+                >
+                    <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-blue-600' : ''}`} />
+                    <span className="font-medium text-sm">Actualiser</span>
+                </button>
             </div>
 
             {/* KPI Grid */}

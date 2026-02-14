@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { getNoestWilayas, getNoestCommunes, getNoestDesks, getNoestFees } from '../services/api';
 import { MapPin, Building, Truck, Search, Map, Copy } from 'lucide-react';
 import { useUI } from '../context/UIContext';
 import { useAppData } from '../context/AppDataContext';
@@ -11,7 +10,7 @@ function LocationsPage() {
     const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const { toast } = useUI();
-    const { wilayas: allWilayas } = useAppData();
+    const { wilayas, communes, desks, fees: globalFees, loading: globalLoading, fetchLocationsData } = useAppData();
 
     const handleCopy = (text, label) => {
         if (!text) return;
@@ -19,50 +18,31 @@ function LocationsPage() {
         toast.success(`${label} copié !`);
     };
 
+    useEffect(() => {
+        fetchLocationsData();
+    }, []);
 
     useEffect(() => {
         setSearchTerm(''); // Reset search on tab change
-        fetchData();
-    }, [activeTab]);
 
-    const fetchData = async () => {
-        setLoading(true);
-        try {
-            let result = [];
-            if (activeTab === 'wilayas') {
-                const [wilayasData, feesData] = await Promise.all([
-                    getNoestWilayas(),
-                    getNoestFees()
-                ]);
-                result = wilayasData;
-                // We use 'delivery' fees for the main view as columns are "Livraison"
-                setFees(feesData?.tarifs?.delivery || {});
-                // setAllWilayas(result); // Keep them for lookup too
-            } else if (activeTab === 'communes') {
-                // We need wilayas for search by name, fetch them if needed
-                if (allWilayas.length === 0) {
-                    const w = await getNoestWilayas();
-                    // setAllWilayas(Array.isArray(w) ? w : Object.values(w));
-                }
-                result = await getNoestCommunes();
-            } else if (activeTab === 'desks') {
-                result = await getNoestDesks();
-            }
-
-            // Ensure result is an array
-            if (result && typeof result === 'object' && !Array.isArray(result)) {
-                result = Object.values(result);
-            } else if (!Array.isArray(result)) {
-                result = [];
-            }
-
-            setData(result);
-        } catch (error) {
-            console.error("Error fetching locations data", error);
-        } finally {
-            setLoading(false);
+        if (globalLoading) {
+            setLoading(true);
+            return;
         }
-    };
+
+        setLoading(false);
+
+        if (activeTab === 'wilayas') {
+            setData(wilayas || []);
+            // setAllWilayas(wilayas); // Already available globally if needed
+            setFees(globalFees?.tarifs?.delivery || {});
+        } else if (activeTab === 'communes') {
+            setData(communes || []);
+        } else if (activeTab === 'desks') {
+            setData(desks || []);
+        }
+
+    }, [activeTab, wilayas, communes, desks, globalFees, globalLoading]);
 
     const filteredData = data.filter(item => {
         const search = searchTerm.toLowerCase();
@@ -71,7 +51,7 @@ function LocationsPage() {
         } else if (activeTab === 'communes') {
             if (!search) return false; // Don't show anything by default
 
-            const wilaya = allWilayas.find(w => w.code == item.wilaya_id);
+            const wilaya = wilayas.find(w => w.code == item.wilaya_id);
             const wilayaName = wilaya ? wilaya.nom.toLowerCase() : '';
 
             return (
@@ -80,7 +60,7 @@ function LocationsPage() {
                 wilayaName.includes(search)
             );
         } else if (activeTab === 'desks') {
-            const wilaya = allWilayas.find(w => w.code == item.wilaya_id);
+            const wilaya = wilayas.find(w => w.code == item.wilaya_id);
             const wilayaName = wilaya ? wilaya.nom.toLowerCase() : '';
             return (
                 item.name?.toLowerCase().includes(search) ||

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { getOrders, getNoestTrackingInfo, updateMessageStatus, updateOrder } from '../services/api';
-import { Search, RefreshCw, Truck, MapPin, User, Calendar, X, History, Phone, Home } from 'lucide-react';
+import { Search, RefreshCw, Truck, MapPin, User, Calendar, X, History, Phone, Home, Eye, ArrowRightLeft } from 'lucide-react';
 import { useUI } from '../context/UIContext';
 import { useAppData } from '../context/AppDataContext';
 
@@ -20,14 +20,82 @@ function NoestTrackingPage() {
         const key = (eventKey || '').toLowerCase();
         const label = (eventLabel || '').toLowerCase();
 
-        if (key.includes('livred') || key.includes('validation_reception_cash') || key.includes('verssement')) return 'Livré';
-        if (key.includes('return') || label.includes('retour')) return 'Retour';
-        if (key.includes('suspendu')) return 'Suspendu';
-        if (key === 'mise_a_jour' && label.includes('tentative')) return isStopDesk ? 'En Hub' : 'En Livraison';
-        if (key === 'fdr_activated' || key.includes('sent_to_redispatch') || label.includes('en livraison')) return 'En Livraison';
-        if (key === 'validation_reception') return isStopDesk ? 'En Hub' : 'En Livraison';
-        if (key === 'customer_validation') return 'Validé';
-        if (key === 'upload') return 'Uploadé';
+        // --- 9. Retour ---
+        if (
+            key.includes('return') ||
+            key.includes('retour') ||
+            key.includes('echoué') ||
+            key.includes('echoe') ||
+            key === 'annulation_dispatch_retour' ||
+            key === 'cancel_return_dispatched_to_partenaire' ||
+            key === 'colis_retour_transmit_to_partner' ||
+            key === 'livraison_echoe_recu'
+        ) return 'Retour';
+
+        // --- 8. Finance ---
+        if (
+            key.includes('verssement') ||
+            key.includes('cash_by_partener') ||
+            key === 'extra_fee'
+        ) return 'Finance';
+
+        // --- 7. En Modification (NOUVELLE CATEGORIE) ---
+        if (
+            key === 'edited_informations' ||
+            key === 'edit_wilaya' ||
+            key === 'edit_price' ||
+            key.includes('exchange') // Les échanges sont des modifications de commande
+        ) return 'En modification';
+
+        // --- 6. Livré ---
+        if (key === 'livrre' || key === 'livred' || key === 'livré') return 'Livré';
+
+        // --- 5. Suspendus ---
+        if (
+            key === 'colis_suspendu' ||
+            key.includes('ask_to_delete') // Demandes de suppression
+        ) return 'Suspendu';
+
+
+        // --- 4. En Livraison / En Hub ---
+        // Règle d'Or Noest: 
+        // - Si StopDesk (isStopDesk == 1) -> "En Hub"
+        // - Si Domicile (isStopDesk == 0) -> "En Livraison"
+        if (
+            key === 'fdr_activated' ||      // En livraison (Feuille de route)
+            key === 'mise_a_jour' ||        // Tentative de livraison
+            key === 'validation_reception'  // Enlevé par le livreur / Arrivé station
+        ) {
+            return isStopDesk ? 'En Hub' : 'En livraison';
+        }
+
+        // --- 3. En Expédition (Vers Hub) ---
+        if (
+            key === 'sent_to_redispach' ||      // En redispach
+            key === 'pickup_picked_recu' ||     // Reçu par partenaire (hub départ)
+            key === 'return_dispatched_to_warehouse' // Retour vers entrepôt
+        ) {
+            return 'En expédition';
+        }
+
+        // --- 2. Upload sur le systeme ---
+        if (
+            key === 'upload'
+        ) return 'Upload';
+
+        // --- 2. En Traitement ---
+        if (
+            key === 'customer_validation' ||
+            key === 'validation_collect_colis' ||
+            key === 'pickuped' ||
+            key === 'valid_return_pickup' ||
+            key === 'validation_reception_admin'
+        ) {
+            return 'En traitement';
+        }
+
+        // Fallback générique
+        if (key.includes('valid')) return 'En traitement';
 
         return 'Autres';
     };
@@ -36,7 +104,7 @@ function NoestTrackingPage() {
         setLoading(true);
         try {
             const sheetOrders = await getOrders();
-            // console.log("Sheet Orders fetched:", sheetOrders.length);
+            // console.log("Sheet Orders fetched:", sheetOrders);
 
             // Filter all orders that have a tracking number (ignoring 'System' state check)
             const trackedOrders = sheetOrders.filter(o => o.tracking && String(o.tracking).trim().length > 5);
@@ -51,7 +119,7 @@ function NoestTrackingPage() {
             }
 
             const result = await getNoestTrackingInfo(trackingsToFetch);
-            console.log("Noest results received:", Object.keys(result));
+            // console.log("Noest results received:", Object.keys(result));
 
             const parseCustomDate = (dateStr) => {
                 if (!dateStr) return new Date(0);
@@ -69,8 +137,8 @@ function NoestTrackingPage() {
                 return `${pad(dateObj.getDate())}-${pad(dateObj.getMonth() + 1)}-${dateObj.getFullYear()} ${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}`;
             };
 
-            // Prepare list for synchronization
-            const updatesToSync = [];
+            // Prepare list for synchronization - REMOVED AUTOMATIC SYNC
+            // const updatesToSync = []; 
 
             const noestData = Object.values(result).map(item => {
                 const info = item.OrderInfo || {};
@@ -100,16 +168,7 @@ function NoestTrackingPage() {
                 const isMessageSent = localOrder ? (localOrder.isMessageSent === true) : false;
                 const rowId = localOrder?.rowId;
 
-                // Synchronization Logic: Check if state needs update
-                if (localOrder && rowId && category && localOrder.state !== category) {
-                    // Avoid updating if state is already 'Livré' or 'Retour' in sheet to prevent overwrites if needed,
-                    // BUT user asked to sync, so we overwrite.
-                    updatesToSync.push({
-                        rowId: rowId,
-                        orderAtIndex: localOrder,
-                        newState: category
-                    });
-                }
+                // Synchronization Logic MOVED to handleSync
 
                 return {
                     tracking: info.tracking,
@@ -137,34 +196,12 @@ function NoestTrackingPage() {
                     is_stopdesk: isStopDesk,
                     isMessageSent: isMessageSent,
                     rowId: rowId,
-                    stationExpedition: localOrder?.stationExpedition
+                    stationExpedition: localOrder?.stationExpedition,
+                    localOrder: localOrder // Store full object for sync
                 };
             });
 
             setOrders(noestData);
-
-            // Execute Synchronization
-            if (updatesToSync.length > 0) {
-                console.log(`Synchronizing ${updatesToSync.length} orders...`);
-                // Process updates in parallel
-                try {
-                    const updatePromises = updatesToSync.map(update => {
-                        // Construct payload with updated state
-                        // Ensure we don't lose other fields, although updateOrder might be partial or full depending on backend.
-                        // Assuming full object update as in OrdersListPage
-                        const payload = { ...update.orderAtIndex, state: update.newState };
-                        return updateOrder(update.rowId, payload); // Using exported updateOrder from api.js
-                    });
-
-                    await Promise.all(updatePromises);
-                    toast.success(`${updatesToSync.length} commandes synchronisées avec succès !`);
-                } catch (syncError) {
-                    console.error("Synchronization failed", syncError);
-                    toast.error("Erreur lors de la synchronisation des états.");
-                }
-            } else {
-                console.log("No orders to synchronize.");
-            }
 
         } catch (error) {
             console.error("Failed to fetch Noest info", error);
@@ -174,10 +211,54 @@ function NoestTrackingPage() {
         }
     };
 
+    const handleSync = async () => {
+        const updatesToSync = orders.filter(o =>
+            o.localOrder && o.category && o.localOrder.state !== o.category
+        ).map(o => ({
+            rowId: o.rowId,
+            orderAtIndex: o.localOrder,
+            newState: o.category
+        }));
+
+        if (updatesToSync.length === 0) {
+            toast.info("Tout est déjà synchronisé !");
+            return;
+        }
+
+        const confirmed = window.confirm(`Voulez-vous synchroniser ${updatesToSync.length} commandes avec les statuts Noest ?`);
+        if (!confirmed) return;
+
+        setLoading(true);
+        try {
+            const updatePromises = updatesToSync.map(update => {
+                const payload = { ...update.orderAtIndex, state: update.newState };
+                return updateOrder(update.rowId, payload);
+            });
+
+            await Promise.all(updatePromises);
+            toast.success(`${updatesToSync.length} commandes synchronisées avec succès !`);
+
+            // Update local state to reflect changes without full re-fetch
+            setOrders(prev => prev.map(o => {
+                const update = updatesToSync.find(u => u.rowId === o.rowId);
+                if (update) {
+                    return { ...o, localOrder: { ...o.localOrder, state: update.newState } };
+                }
+                return o;
+            }));
+
+        } catch (syncError) {
+            console.error("Synchronization failed", syncError);
+            toast.error("Erreur lors de la synchronisation des états.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
 
 
     const handleMessageSent = async (order) => {
-        console.log("handleMessageSent clicked for order:", order);
+        // console.log("handleMessageSent clicked for order:", order);
 
         if (!order.rowId) {
             console.error("Missing rowId for order", order);
@@ -205,7 +286,7 @@ function NoestTrackingPage() {
 
     const [activeTab, setActiveTab] = useState('all');
 
-    const ORDERED_CATEGORIES = ['all', 'Uploadé', 'Validé', 'En Hub', 'En Livraison', 'Suspendu', 'Livré', 'Retour', 'Encaissé', 'Autres'];
+    const ORDERED_CATEGORIES = ['all', 'Upload', 'En traitement', 'En expédition', 'En Hub', 'En livraison', 'Suspendu', 'Livré', 'Finance', 'Retour', 'En modification', 'Autres'];
 
     const displayedOrders = useMemo(() => {
         const filtered = (orders || []).filter(order => {
@@ -288,6 +369,9 @@ function NoestTrackingPage() {
                     <button onClick={fetchNoestData} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-blue-600 transition-colors" title="Actualiser">
                         <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                     </button>
+                    <button onClick={handleSync} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-green-600 transition-colors" title="Synchroniser">
+                        <ArrowRightLeft className="w-4 h-4" />
+                    </button>
                     <div className="relative group">
                         <Search className="absolute left-3 top-2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
                         <input
@@ -343,7 +427,7 @@ function NoestTrackingPage() {
                             {columnsData.map((colOrders, colIndex) => (
                                 <div key={colIndex} className="flex-1 flex flex-col gap-2 min-w-0">
                                     {colOrders.map((o) => (
-                                        <OrderCard key={o.tracking || o.reference} order={o} onMessageSent={handleMessageSent} />
+                                        <OrderCard key={o.tracking || o.reference} order={o} onMessageSent={handleMessageSent} onClick={() => setSelectedOrder(o)} />
                                     ))}
                                 </div>
                             ))}
@@ -362,6 +446,7 @@ function NoestTrackingPage() {
                                         <th className="px-4 py-3 font-bold text-right">Montant</th>
                                         <th className="px-4 py-3 font-bold text-center">Statut Noest</th>
                                         <th className="px-4 py-3 font-bold text-center w-20">Msg</th>
+                                        <th className="px-4 py-3 font-bold text-center w-20">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
@@ -411,8 +496,7 @@ function OrderTableRow({ order, index, onClick }) {
 
     return (
         <tr
-            onClick={onClick}
-            className="group hover:bg-slate-50 cursor-pointer transition-colors border-b border-slate-50"
+            className="group hover:bg-slate-50 transition-colors border-b border-slate-50"
         >
             <td className="px-4 py-2 text-center text-xs text-slate-400">
                 {index + 1}
@@ -447,6 +531,18 @@ function OrderTableRow({ order, index, onClick }) {
             </td>
             <td className="px-4 py-2 text-center">
                 <div className={`w-3 h-3 rounded-full mx-auto ${order.isMessageSent ? 'bg-green-500 ring-4 ring-green-100' : 'bg-blue-200'}`} title={order.isMessageSent ? "Message Envoyé" : "Message Non Envoyé"}></div>
+            </td>
+            <td className="px-4 py-2 text-center">
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onClick();
+                    }}
+                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                    title="Voir Détails"
+                >
+                    <Eye className="w-4 h-4" />
+                </button>
             </td>
         </tr>
     );
@@ -596,7 +692,7 @@ function OrderDetailsModal({ order, onClose, onMessageSent }) {
     );
 }
 
-function OrderCard({ order, onMessageSent }) {
+function OrderCard({ order, onMessageSent, onClick }) {
     const [expanded, setExpanded] = useState(false);
     const { toast } = useUI();
 
@@ -624,7 +720,7 @@ function OrderCard({ order, onMessageSent }) {
     };
 
     const statusStyle = getStatusColor(order.status, order.status_class);
-    console.log(order);
+    // console.log(order);
     return (
         <div
             className={`
@@ -633,9 +729,7 @@ function OrderCard({ order, onMessageSent }) {
             `}
         >
             <div
-                onClick={() => setExpanded(!expanded)}
-                className="p-3 flex flex-col gap-1 cursor-pointer bg-white hover:bg-slate-50 transition-colors"
-                title="Cliquer pour voir les détails"
+                className="p-3 flex flex-col gap-3 bg-white"
             >
                 {/* Ligne 1 : Reference - Client - Etat */}
                 <div className="flex items-center justify-between gap-2 w-full">
@@ -663,10 +757,40 @@ function OrderCard({ order, onMessageSent }) {
                         {order.phone || '-'}
                     </span>
                 </div>
+                {/* Action Row */}
+                {!expanded && (
+                    <div className="flex items-center justify-end pt-2 border-t border-slate-100 mt-1">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setExpanded(true);
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all"
+                        >
+                            <Eye className="w-3.5 h-3.5" /> Détails
+                        </button>
+                    </div>
+                )}
             </div>
 
             {expanded && (
                 <div className="border-t border-slate-100 bg-slate-50/50 p-4 text-sm animate-in fade-in slide-in-from-top-1 duration-200 cursor-default" onClick={e => e.stopPropagation()}>
+                    {/* Driver Info */}
+                    {(order.driver_name || order.driver_phone) && (
+                        <div
+                            onClick={handleCopyDriver}
+                            className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-lg p-2 mb-4 text-indigo-800 cursor-pointer hover:bg-indigo-100 transition-colors"
+                        >
+                            <div className="w-6 h-6 rounded-full bg-indigo-200 flex items-center justify-center shrink-0">
+                                <Truck className="w-3 h-3 text-indigo-700" />
+                            </div>
+                            <div className="min-w-0">
+                                <div className="font-bold text-xs truncate">{order.driver_name}</div>
+                                <div className="font-mono text-[10px]">{order.driver_phone}</div>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="mb-4 space-y-2">
                         {/* Row 1: Tracking & Price */}
                         <div className="flex items-center justify-between bg-white p-2 rounded border border-slate-200">
@@ -688,54 +812,46 @@ function OrderCard({ order, onMessageSent }) {
                                 )}
                             </div>
                         </div>
-
-                        {/* Driver Info */}
-                        {(order.driver_name || order.driver_phone) && (
-                            <div
-                                onClick={handleCopyDriver}
-                                className="flex items-center gap-2 text-xs bg-blue-50/50 border border-blue-100 rounded p-2 text-blue-800 cursor-pointer hover:bg-blue-100 transition-colors"
-                                title="Cliquer pour copier"
-                            >
-                                <Truck className="w-3 h-3" />
-                                <span>{order.driver_name} {order.driver_phone}</span>
-                            </div>
-                        )}
                     </div>
 
-                    <div className="space-y-0 relative pl-2">
-                        <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-slate-200"></div>
-                        {(order.activities || []).map((act, idx) => (
-                            <div key={idx} className="relative pl-6 pb-6 last:pb-0 h-full">
-                                <div className={`absolute left-0 top-1.5 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm z-10 ${idx === 0 ? 'bg-blue-500' : 'bg-slate-300'}`}></div>
-                                <div className="flex flex-col gap-0.5">
-                                    <span className="text-[10px] font-bold text-slate-400 font-mono leading-none">{act.date}</span>
-                                    <span className={`text-xs font-bold leading-tight ${idx === 0 ? 'text-blue-700' : 'text-slate-700'}`}>{act.event}</span>
-                                    {act.content && <p className="text-[10px] text-slate-500 bg-white p-1.5 rounded border border-slate-100 mt-1 italic leading-tight">"{act.content}"</p>}
+                    {/* History / Timeline in Expanded Card */}
+                    <div className="mt-3 pt-3 border-t border-slate-100">
+                        <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-2">Historique</h4>
+                        <div className="relative pl-3 border-l border-slate-200 space-y-3">
+                            {(order.activities || []).map((act, idx) => (
+                                <div key={idx} className="relative">
+                                    <div className={`absolute -left-[16.5px] top-1 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm ${idx === 0 ? 'bg-blue-600' : 'bg-slate-300'}`}></div>
+                                    <div className="flex flex-col">
+                                        <span className={`text-xs font-bold leading-tight ${idx === 0 ? 'text-blue-700' : 'text-slate-700'}`}>{act.event}</span>
+                                        <span className="text-[10px] text-slate-400 font-mono">{act.date}</span>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
+                            {(!order.activities || order.activities.length === 0) && <div className="text-xs text-slate-400 italic">Aucune activité</div>}
+                        </div>
                     </div>
 
-                    <div className="mt-4 flex flex-col gap-2">
-                        {!order.isMessageSent && (
+
+                    {/* Bottom Actions */}
+                    <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-slate-100">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setExpanded(false); }}
+                            className="px-3 py-1.5 text-slate-500 hover:bg-slate-100 rounded-lg text-xs font-bold transition-colors"
+                        >
+                            Fermer
+                        </button>
+                        {!order.isMessageSent ? (
                             <button
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (onMessageSent) onMessageSent(order);
-                                }}
-                                className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded transition-colors flex items-center justify-center gap-2"
+                                onClick={(e) => { e.stopPropagation(); onMessageSent(order); }}
+                                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors"
                             >
-                                <Phone className="w-3 h-3" /> Envoyer Message
+                                <Phone className="w-3 h-3" /> Envoyer
+                            </button>
+                        ) : (
+                            <button disabled className="px-3 py-1.5 bg-green-50 text-green-700 border border-green-200 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-default">
+                                <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div> Envoyé
                             </button>
                         )}
-                        <button
-                            type="button"
-                            onClick={() => setExpanded(false)}
-                            className="w-full py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-600 text-xs font-bold rounded transition-colors flex items-center justify-center gap-1"
-                        >
-                            <X className="w-3 h-3" /> Fermer
-                        </button>
                     </div>
                 </div>
             )}

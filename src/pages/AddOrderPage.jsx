@@ -7,7 +7,13 @@ import Combobox from '../components/Combobox';
 
 function AddOrderPage() {
     const { toast } = useUI();
-    const { wilayas, communes, desks: stations, loading: loadingRef } = useAppData();
+    const { wilayas, communes, desks: stations, loading: loadingRef, fetchLocationsData, fetchOrders } = useAppData();
+
+    useEffect(() => {
+        if (fetchLocationsData) {
+            fetchLocationsData();
+        }
+    }, [fetchLocationsData]);
 
     const [newOrder, setNewOrder] = useState({
         reference: '',
@@ -120,6 +126,9 @@ function AddOrderPage() {
             console.log('Submitting order:', newOrder);
             await createOrder(newOrder);
             toast.success('Commande ajoutée avec succès !');
+            // Refresh orders cache so the new order appears in the list immediately
+            if (fetchOrders) fetchOrders(true);
+
             setNewOrder(prev => {
                 // Calculate next reference from the one just submitted
                 const lastRef = prev.reference;
@@ -285,6 +294,8 @@ function AddOrderPage() {
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Station Expédition</label>
                         <select required name="stationExpedition" value={newOrder.stationExpedition} onChange={handleInputChange}
                             className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-blue-700">
+                            <option value="35A">35A</option>
+                            <option value="35B">35B</option>
                             <option value="35C">35C</option>
                             <option value="35D">35D</option>
                         </select>
