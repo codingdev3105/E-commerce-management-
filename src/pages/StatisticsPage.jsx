@@ -77,13 +77,46 @@ function StatisticsPage() {
         });
 
         // 1. Daily Evolution Data (Using non-cancelled orders)
-        const dailyMap = nonCancelledOrders.reduce((acc, o) => {
-            let date = o.date ? o.date.split('T')[0].split(' ')[0] : 'Inconnu';
-            if (!acc[date]) acc[date] = { date, count: 0 };
-            acc[date].count += 1;
-            return acc;
-        }, {});
-        const dailyData = Object.values(dailyMap).sort((a, b) => new Date(a.date) - new Date(b.date));
+        // Normalize date to YYYY-MM-DD regardless of input format
+        const normalizeDate = (raw) => {
+            if (!raw) return null;
+            const str = String(raw).split('T')[0].split(' ')[0].trim();
+            const parts = str.split(/[\/\-\.]/);
+            if (parts.length === 3) {
+                if (parts[0].length === 4) return str; // YYYY-MM-DD
+                return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`; // DD/MM/YYYY
+            }
+            return null;
+        };
+
+        const dailyMap = {};
+        nonCancelledOrders.forEach(o => {
+            const date = normalizeDate(o.date);
+            if (date) {
+                if (!dailyMap[date]) dailyMap[date] = 0;
+                dailyMap[date] += 1;
+            }
+        });
+
+        const sortedDates = Object.keys(dailyMap).sort();
+        let dailyData = [];
+        console.log('📊 Dates found:', sortedDates.length, sortedDates.slice(0, 3));
+
+        if (sortedDates.length > 0) {
+            const minDate = new Date(sortedDates[0] + 'T00:00:00');
+            const maxDate = new Date(sortedDates[sortedDates.length - 1] + 'T00:00:00');
+
+            const cur = new Date(minDate);
+            while (cur <= maxDate) {
+                const y = cur.getFullYear();
+                const m = String(cur.getMonth() + 1).padStart(2, '0');
+                const d = String(cur.getDate()).padStart(2, '0');
+                const key = `${y}-${m}-${d}`;
+                dailyData.push({ date: key, count: dailyMap[key] || 0 });
+                cur.setDate(cur.getDate() + 1);
+            }
+        }
+        console.log('📊 Daily data:', dailyData.length, 'entries');
 
         // 2. Status Breakdown Data (For Pie Chart)
         const statusMap = nonCancelledOrders.reduce((acc, o) => {
@@ -268,24 +301,26 @@ function StatisticsPage() {
                 {/* Daily Evolution */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-2">
                     <h3 className="text-lg font-bold text-slate-800 mb-6">Évolution Journalière des Commandes</h3>
-                    <div className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={stats.dailyData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                                <defs>
-                                    <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                                <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                                <RechartsTooltip
-                                    contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                />
-                                <Area type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorCount)" name="Commandes" />
-                            </AreaChart>
-                        </ResponsiveContainer>
+                    <div className="h-[300px] w-full overflow-x-auto">
+                        <div style={{ minWidth: '600px', width: '100%', height: '100%' }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={stats.dailyData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                    <defs>
+                                        <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
+                                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                                        </linearGradient>
+                                    </defs>
+                                    <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                                    <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                    <RechartsTooltip
+                                        contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                    />
+                                    <Area type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorCount)" name="Commandes" />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </div>
                     </div>
                 </div>
 
