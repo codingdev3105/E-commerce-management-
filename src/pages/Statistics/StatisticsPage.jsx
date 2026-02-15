@@ -119,6 +119,21 @@ function StatisticsPage() {
         }
         console.log('📊 Daily data:', dailyData.length, 'entries');
 
+        // Calculate Date Range for Display
+        let dateRangeString = '';
+        if (sortedDates.length > 0) {
+            const minDate = new Date(sortedDates[0] + 'T00:00:00');
+            const maxDate = new Date(sortedDates[sortedDates.length - 1] + 'T00:00:00');
+            const options = { month: 'long', year: 'numeric' };
+            const startStr = minDate.toLocaleDateString('fr-FR', options);
+            const endStr = maxDate.toLocaleDateString('fr-FR', options);
+            dateRangeString = (startStr === endStr) ? startStr : `${startStr} - ${endStr}`;
+            // Capitalize first letter
+            dateRangeString = dateRangeString.charAt(0).toUpperCase() + dateRangeString.slice(1);
+        }
+
+        const avgOrdersPerDay = dailyData.length > 0 ? (totalOrders / dailyData.length).toFixed(1) : 0;
+
         // 2. Status Breakdown Data (For Pie Chart)
         const statusMap = nonCancelledOrders.reduce((acc, o) => {
             const s = o.state || 'Inconnu';
@@ -191,7 +206,9 @@ function StatisticsPage() {
             dailyData,
             statusData,
             priceData,
-            getColor
+            getColor,
+            avgOrdersPerDay,
+            dateRangeString
         };
     }, [orders, fees]);
 
@@ -235,6 +252,9 @@ function StatisticsPage() {
                     <div>
                         <div className="text-sm font-medium text-slate-500">Total (Hors Annulées)</div>
                         <div className="text-2xl font-bold text-slate-800">{stats.totalOrders}</div>
+                        <div className="text-xs text-slate-400 font-medium mt-0.5">
+                            Moyenne: <span className="text-blue-600 font-bold">{stats.avgOrdersPerDay}</span> / jour
+                        </div>
                     </div>
                 </div>
 
@@ -301,7 +321,10 @@ function StatisticsPage() {
 
                 {/* Daily Evolution */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-2">
-                    <h3 className="text-lg font-bold text-slate-800 mb-6">Évolution Journalière des Commandes</h3>
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-lg font-bold text-slate-800">Évolution Journalière des Commandes</h3>
+                        {stats.dateRangeString && <span className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1 rounded-full">{stats.dateRangeString}</span>}
+                    </div>
                     <div className="h-[300px] w-full overflow-x-auto">
                         <div style={{ minWidth: '600px', width: '100%', height: '100%' }}>
                             <ResponsiveContainer width="100%" height="100%">
@@ -312,7 +335,17 @@ function StatisticsPage() {
                                             <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                                         </linearGradient>
                                     </defs>
-                                    <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                                    <XAxis
+                                        dataKey="date"
+                                        stroke="#94a3b8"
+                                        fontSize={12}
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickFormatter={(value) => {
+                                            const [y, m, d] = value.split('-');
+                                            return `${d}-${m}`;
+                                        }}
+                                    />
                                     <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                                     <RechartsTooltip

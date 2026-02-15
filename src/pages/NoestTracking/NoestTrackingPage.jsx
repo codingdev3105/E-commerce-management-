@@ -147,6 +147,12 @@ function NoestTrackingPage() {
         }
     };
 
+    const updatesToSyncCount = useMemo(() => {
+        return orders.filter(o =>
+            o.localOrder && o.category && o.localOrder.state !== o.category
+        ).length;
+    }, [orders]);
+
     const handleMessageSent = async (order) => {
         if (!order.rowId) {
             console.error("Missing rowId for order", order);
@@ -255,8 +261,13 @@ function NoestTrackingPage() {
                     <button onClick={fetchNoestData} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-blue-600 transition-colors" title="Actualiser">
                         <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                     </button>
-                    <button onClick={handleSync} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-green-600 transition-colors" title="Synchroniser">
+                    <button onClick={handleSync} className="relative p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-green-600 transition-colors" title="Synchroniser">
                         <ArrowRightLeft className="w-4 h-4" />
+                        {updatesToSyncCount > 0 && (
+                            <span className="absolute -top-2 -right-0 bg-red-500 text-white text-[9px] font-bold px-1.5 rounded-full min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-white">
+                                {updatesToSyncCount}
+                            </span>
+                        )}
                     </button>
                     <div className="relative group">
                         <Search className="absolute left-3 top-2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
@@ -687,9 +698,10 @@ function OrderCard({ order, onMessageSent, onClick }) {
                             {(order.activities || []).map((act, idx) => (
                                 <div key={idx} className="relative">
                                     <div className={`absolute -left-[16.5px] top-1 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm ${idx === 0 ? 'bg-blue-600' : 'bg-slate-300'}`}></div>
-                                    <div className="flex flex-col">
+                                    <div className="flex flex-col gap-0.5">
                                         <span className={`text-xs font-bold leading-tight ${idx === 0 ? 'text-blue-700' : 'text-slate-700'}`}>{act.event}</span>
                                         <span className="text-[10px] text-slate-400 font-mono">{act.date}</span>
+                                        {act.content && <p className="text-[10px] text-slate-600 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 mt-0.5 italic">"{act.content}"</p>}
                                     </div>
                                 </div>
                             ))}
