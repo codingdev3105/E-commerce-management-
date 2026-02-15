@@ -23,6 +23,7 @@ export const STATUS_COLORS = {
     'En Hub': '#4898fe',
     'Upload': '#ffbb83',
     'Suspendu': '#ff8991',
+    'En modification': '#e4fffe',
 };
 
 export const getStateColor = (state) => {
@@ -39,6 +40,7 @@ export const getStateColor = (state) => {
     if (s.includes('annul')) return 'bg-[#fffd12] text-slate-900 border-yellow-400';
     if (s.includes('retour')) return 'bg-[#ff0000] text-white border-red-800';
     if (s.includes('traitement')) return 'bg-[#ff904f] text-white border-orange-600';
+    if (s.includes('modification')) return 'bg-[#e4fffe] text-slate-900 border-slate-200';
 
     return 'bg-slate-100 text-slate-700 border-slate-200';
 };
