@@ -1,8 +1,10 @@
+
 import { useState, useEffect, useMemo } from 'react';
-import { getOrders, getNoestTrackingInfo, updateMessageStatus, updateOrder } from '../services/api';
-import { Search, RefreshCw, Truck, MapPin, User, Calendar, X, History, Phone, Home, Eye, ArrowRightLeft } from 'lucide-react';
-import { useUI } from '../context/UIContext';
-import { useAppData } from '../context/AppDataContext';
+import { getOrders, getNoestTrackingInfo, updateMessageStatus, updateOrder } from '../../services/api';
+import { Search, RefreshCw, Truck, MapPin, User, X, Phone, Eye, ArrowRightLeft } from 'lucide-react';
+import { useUI } from '../../context/UIContext';
+import { useAppData } from '../../context/AppDataContext';
+import { getCategoryFromEvent, formatNoestDate, parseNoestDate } from '../common/noestUtils';
 
 function NoestTrackingPage() {
     const [orders, setOrders] = useState([]);
@@ -16,101 +18,13 @@ function NoestTrackingPage() {
         fetchNoestData();
     }, [wilayas]);
 
-    const getCategoryFromEvent = (eventKey, eventLabel, isStopDesk) => {
-        const key = (eventKey || '').toLowerCase();
-        const label = (eventLabel || '').toLowerCase();
-
-        // --- 9. Retour ---
-        if (
-            key.includes('return') ||
-            key.includes('retour') ||
-            key.includes('echoué') ||
-            key.includes('echoe') ||
-            key === 'annulation_dispatch_retour' ||
-            key === 'cancel_return_dispatched_to_partenaire' ||
-            key === 'colis_retour_transmit_to_partner' ||
-            key === 'livraison_echoe_recu'
-        ) return 'Retour';
-
-        // --- 8. Finance ---
-        if (
-            key.includes('verssement') ||
-            key.includes('cash_by_partener') ||
-            key === 'extra_fee'
-        ) return 'Finance';
-
-        // --- 7. En Modification (NOUVELLE CATEGORIE) ---
-        if (
-            key === 'edited_informations' ||
-            key === 'edit_wilaya' ||
-            key === 'edit_price' ||
-            key.includes('exchange') // Les échanges sont des modifications de commande
-        ) return 'En modification';
-
-        // --- 6. Livré ---
-        if (key === 'livrre' || key === 'livred' || key === 'livré') return 'Livré';
-
-        // --- 5. Suspendus ---
-        if (
-            key === 'colis_suspendu' ||
-            key.includes('ask_to_delete') // Demandes de suppression
-        ) return 'Suspendu';
-
-
-        // --- 4. En Livraison / En Hub ---
-        // Règle d'Or Noest: 
-        // - Si StopDesk (isStopDesk == 1) -> "En Hub"
-        // - Si Domicile (isStopDesk == 0) -> "En Livraison"
-        if (
-            key === 'fdr_activated' ||      // En livraison (Feuille de route)
-            key === 'mise_a_jour' ||        // Tentative de livraison
-            key === 'validation_reception'  // Enlevé par le livreur / Arrivé station
-        ) {
-            return isStopDesk ? 'En Hub' : 'En livraison';
-        }
-
-        // --- 3. En Expédition (Vers Hub) ---
-        if (
-            key === 'sent_to_redispach' ||      // En redispach
-            key === 'pickup_picked_recu' ||     // Reçu par partenaire (hub départ)
-            key === 'return_dispatched_to_warehouse' // Retour vers entrepôt
-        ) {
-            return 'En expédition';
-        }
-
-        // --- 2. Upload sur le systeme ---
-        if (
-            key === 'upload'
-        ) return 'Upload';
-
-        // --- 2. En Traitement ---
-        if (
-            key === 'customer_validation' ||
-            key === 'validation_collect_colis' ||
-            key === 'pickuped' ||
-            key === 'valid_return_pickup' ||
-            key === 'validation_reception_admin'
-        ) {
-            return 'En traitement';
-        }
-
-        // Fallback générique
-        if (key.includes('valid')) return 'En traitement';
-
-        return 'Autres';
-    };
 
     const fetchNoestData = async () => {
         setLoading(true);
         try {
             const sheetOrders = await getOrders();
-            // console.log("Sheet Orders fetched:", sheetOrders);
-
-            // Filter all orders that have a tracking number (ignoring 'System' state check)
             const trackedOrders = sheetOrders.filter(o => o.tracking && String(o.tracking).trim().length > 5);
             const trackingsToFetch = trackedOrders.map(o => o.tracking);
-
-            // console.log("Trackings to fetch from Noest:", trackingsToFetch.length);
 
             if (trackingsToFetch.length === 0) {
                 setOrders([]);
@@ -119,26 +33,6 @@ function NoestTrackingPage() {
             }
 
             const result = await getNoestTrackingInfo(trackingsToFetch);
-            // console.log("Noest results received:", Object.keys(result));
-
-            const parseCustomDate = (dateStr) => {
-                if (!dateStr) return new Date(0);
-                let cleanStr = dateStr;
-                if (typeof dateStr === 'string' && dateStr.includes('.000000Z')) {
-                    cleanStr = dateStr.replace(' ', 'T').replace('.000000Z', 'Z');
-                }
-                const d = new Date(cleanStr);
-                return !isNaN(d.getTime()) ? d : new Date(0);
-            };
-
-            const formatDate = (dateObj) => {
-                if (!dateObj || isNaN(dateObj.getTime()) || dateObj.getTime() === 0) return '-';
-                const pad = (n) => n.toString().padStart(2, '0');
-                return `${pad(dateObj.getDate())}-${pad(dateObj.getMonth() + 1)}-${dateObj.getFullYear()} ${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}`;
-            };
-
-            // Prepare list for synchronization - REMOVED AUTOMATIC SYNC
-            // const updatesToSync = []; 
 
             const noestData = Object.values(result).map(item => {
                 const info = item.OrderInfo || {};
@@ -147,7 +41,7 @@ function NoestTrackingPage() {
 
                 const sortedActivities = activities.map(act => ({
                     ...act,
-                    parsedDate: parseCustomDate(act.date)
+                    parsedDate: parseNoestDate(act.date)
                 })).sort((a, b) => b.parsedDate - a.parsedDate);
 
                 const latest = sortedActivities[0] || {};
@@ -168,8 +62,6 @@ function NoestTrackingPage() {
                 const isMessageSent = localOrder ? (localOrder.isMessageSent === true) : false;
                 const rowId = localOrder?.rowId;
 
-                // Synchronization Logic MOVED to handleSync
-
                 return {
                     tracking: info.tracking,
                     reference: info.reference,
@@ -180,13 +72,13 @@ function NoestTrackingPage() {
                     commune: info.commune,
                     adresse: info.adresse,
                     montant: info.montant,
-                    created_at: formatDate(parseCustomDate(info.created_at)),
+                    created_at: formatNoestDate(parseNoestDate(info.created_at)),
                     status: latest.event || info.current_status || 'En attente',
                     category: category,
                     status_class: latest['badge-class'],
                     activities: sortedActivities.map(a => ({
                         ...a,
-                        date: formatDate(a.parsedDate)
+                        date: formatNoestDate(a.parsedDate)
                     })),
                     deliveryAttempts: deliveryAttempts,
                     driver_name: info.driver_name,
@@ -221,6 +113,7 @@ function NoestTrackingPage() {
         }));
 
         if (updatesToSync.length === 0) {
+
             toast.info("Tout est déjà synchronisé !");
             return;
         }
@@ -238,7 +131,6 @@ function NoestTrackingPage() {
             await Promise.all(updatePromises);
             toast.success(`${updatesToSync.length} commandes synchronisées avec succès !`);
 
-            // Update local state to reflect changes without full re-fetch
             setOrders(prev => prev.map(o => {
                 const update = updatesToSync.find(u => u.rowId === o.rowId);
                 if (update) {
@@ -255,11 +147,7 @@ function NoestTrackingPage() {
         }
     };
 
-
-
     const handleMessageSent = async (order) => {
-        // console.log("handleMessageSent clicked for order:", order);
-
         if (!order.rowId) {
             console.error("Missing rowId for order", order);
             toast.error("Impossible de mettre à jour : ID manquant (Commande introuvable dans le sheet)");
@@ -267,7 +155,6 @@ function NoestTrackingPage() {
         }
 
         try {
-            // Optimistic update
             setOrders(prev => prev.map(o =>
                 o.tracking === order.tracking ? { ...o, isMessageSent: true } : o
             ));
@@ -277,7 +164,6 @@ function NoestTrackingPage() {
         } catch (error) {
             console.error("Failed to update message status", error);
             toast.error("Erreur lors de la mise à jour");
-            // Revert on failure
             setOrders(prev => prev.map(o =>
                 o.tracking === order.tracking ? { ...o, isMessageSent: false } : o
             ));
@@ -422,7 +308,6 @@ function NoestTrackingPage() {
                     <div className="text-center py-10 text-slate-400 italic">Aucune commande dans cet onglet.</div>
                 ) : (
                     <>
-                        {/* Mobile Grid View */}
                         <div className="md:hidden flex gap-2 items-start p-4 pb-20">
                             {columnsData.map((colOrders, colIndex) => (
                                 <div key={colIndex} className="flex-1 flex flex-col gap-2 min-w-0">
@@ -433,7 +318,6 @@ function NoestTrackingPage() {
                             ))}
                         </div>
 
-                        {/* Desktop Table View */}
                         <div className="hidden md:block pb-20 bg-white">
                             <table className="w-full text-left border-collapse">
                                 <thead>
@@ -465,7 +349,6 @@ function NoestTrackingPage() {
                 )}
             </div>
 
-            {/* Modal for Order Details */}
             {selectedOrder && (
                 <OrderDetailsModal
                     order={selectedOrder}
@@ -563,7 +446,6 @@ function OrderDetailsModal({ order, onClose, onMessageSent }) {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-                {/* Header */}
                 <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
                     <div>
                         <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -582,9 +464,7 @@ function OrderDetailsModal({ order, onClose, onMessageSent }) {
                 </div>
 
                 <div className="p-6 flex flex-col md:flex-row gap-6 max-h-[70vh] overflow-y-auto">
-                    {/* Left Column */}
                     <div className="flex-1 space-y-4">
-                        {/* Status & Price Cards */}
                         <div className="grid grid-cols-2 gap-3">
                             <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100">
                                 <div className="text-[10px] text-blue-600 font-bold uppercase tracking-wider">Statut Actuel</div>
@@ -596,7 +476,6 @@ function OrderDetailsModal({ order, onClose, onMessageSent }) {
                             </div>
                         </div>
 
-                        {/* Customer Info */}
                         <div className="space-y-3">
                             <h4 className="text-xs font-bold text-slate-400 uppercase">Client</h4>
                             <div className="bg-white p-3 rounded-xl border border-slate-200 text-sm space-y-2">
@@ -618,7 +497,6 @@ function OrderDetailsModal({ order, onClose, onMessageSent }) {
                             </div>
                         </div>
 
-                        {/* Driver Info */}
                         <div>
                             <h4 className="text-xs font-bold text-slate-400 uppercase mb-2">Livreur</h4>
                             {(order.driver_name || order.driver_phone) ? (
@@ -642,7 +520,6 @@ function OrderDetailsModal({ order, onClose, onMessageSent }) {
                         </div>
                     </div>
 
-                    {/* Right Column: Timeline */}
                     <div className="flex-1">
                         <h4 className="text-xs font-bold text-slate-400 uppercase mb-4">Historique de suivi</h4>
                         <div className="relative pl-4 border-l-2 border-slate-100 space-y-6">
@@ -663,7 +540,6 @@ function OrderDetailsModal({ order, onClose, onMessageSent }) {
                     </div>
                 </div>
 
-                {/* Footer Actions */}
                 <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
                     <button
                         onClick={onClose}
@@ -720,7 +596,6 @@ function OrderCard({ order, onMessageSent, onClick }) {
     };
 
     const statusStyle = getStatusColor(order.status, order.status_class);
-    // console.log(order);
     return (
         <div
             className={`
@@ -728,10 +603,7 @@ function OrderCard({ order, onMessageSent, onClick }) {
                 ${expanded ? 'ring-2 ring-blue-500 shadow-md' : 'hover:border-blue-300 hover:shadow'}
             `}
         >
-            <div
-                className="p-3 flex flex-col gap-3 bg-white"
-            >
-                {/* Ligne 1 : Reference - Client - Etat */}
+            <div className="p-3 flex flex-col gap-3 bg-white">
                 <div className="flex items-center justify-between gap-2 w-full">
                     <div className="flex items-center gap-2 min-w-0">
                         <div className={`w-2 h-2 rounded-full shrink-0 ${order.isMessageSent ? 'bg-green-500' : 'bg-blue-500'}`} title={order.isMessageSent ? "Message envoyé" : "Message non envoyé"}></div>
@@ -748,7 +620,6 @@ function OrderCard({ order, onMessageSent, onClick }) {
                     </div>
                 </div>
 
-                {/* Ligne 2 : Produit - Téléphone */}
                 <div className="flex items-start justify-between gap-2 w-full text-xs">
                     <span className="text-slate-600 font-medium line-clamp-2 leading-tight flex-1" title={typeof order.produit === 'string' ? order.produit : ''}>
                         {typeof order.produit === 'object' ? JSON.stringify(order.produit) : (order.produit || <span className="italic text-slate-400">Produit non spécifié</span>)}
@@ -757,7 +628,6 @@ function OrderCard({ order, onMessageSent, onClick }) {
                         {order.phone || '-'}
                     </span>
                 </div>
-                {/* Action Row */}
                 {!expanded && (
                     <div className="flex items-center justify-end pt-2 border-t border-slate-100 mt-1">
                         <button
@@ -775,7 +645,6 @@ function OrderCard({ order, onMessageSent, onClick }) {
 
             {expanded && (
                 <div className="border-t border-slate-100 bg-slate-50/50 p-4 text-sm animate-in fade-in slide-in-from-top-1 duration-200 cursor-default" onClick={e => e.stopPropagation()}>
-                    {/* Driver Info */}
                     {(order.driver_name || order.driver_phone) && (
                         <div
                             onClick={handleCopyDriver}
@@ -792,14 +661,12 @@ function OrderCard({ order, onMessageSent, onClick }) {
                     )}
 
                     <div className="mb-4 space-y-2">
-                        {/* Row 1: Tracking & Price */}
                         <div className="flex items-center justify-between bg-white p-2 rounded border border-slate-200">
                             <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1 rounded" title="Tracking">{order.tracking}</span>
                             <span className="text-xs font-bold text-blue-600 whitespace-nowrap">{order.montant} DA</span>
                         </div>
 
 
-                        {/* Address Info (MapPin) */}
                         <div className="flex items-start gap-2 text-xs text-slate-600 px-1">
                             <MapPin className="w-3.5 h-3.5 mt-0.5 text-slate-400" />
                             <div>
@@ -814,7 +681,6 @@ function OrderCard({ order, onMessageSent, onClick }) {
                         </div>
                     </div>
 
-                    {/* History / Timeline in Expanded Card */}
                     <div className="mt-3 pt-3 border-t border-slate-100">
                         <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-2">Historique</h4>
                         <div className="relative pl-3 border-l border-slate-200 space-y-3">
@@ -831,8 +697,6 @@ function OrderCard({ order, onMessageSent, onClick }) {
                         </div>
                     </div>
 
-
-                    {/* Bottom Actions */}
                     <div className="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-slate-100">
                         <button
                             onClick={(e) => { e.stopPropagation(); setExpanded(false); }}

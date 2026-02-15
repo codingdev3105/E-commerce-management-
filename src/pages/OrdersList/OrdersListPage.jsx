@@ -1,27 +1,24 @@
 import { useState, useEffect, useMemo } from 'react';
-import { getOrders, deleteOrder, updateOrder, sendToNoest, getValidationRules, getNoestTrackingInfo } from '../../services/api';
-import { Search, Eye, Truck, Home, RefreshCw, Trash2, Pencil, Send, ChevronLeft, ChevronRight, ChevronFirst, ChevronLast, Phone, FileDown, FileText, X, User, MapPin } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { deleteOrder, updateOrder, sendToNoest } from '../../services/api';
 import { useUI } from '../../context/UIContext';
 import { useAppData } from '../../context/AppDataContext';
 import { useStates } from '../../context/StatesContext';
 import { exportToPDF } from '../../services/exportService';
 
-import OrderDetailsPage from '../OrderDetailsPage';
-import EditOrderPage from '../EditOrderPage';
+import OrderDetailsPage from '../OrderDetails/OrderDetailsPage';
+import EditOrderPage from '../EditOrder/EditOrderPage';
 
-import OrderDetailsModal from './components/OrderDetailsModal';
 import MobileOrderCard from './components/MobileOrderCard';
 import OrdersFilterBar from './components/OrdersFilterBar';
 import OrdersBulkActions from './components/OrdersBulkActions';
 import OrdersTable from './components/OrdersTable';
-import { getCategoryFromEvent, parseNoestDate, formatNoestDate } from '../common/noestUtils';
-import { safeString, getStateColor } from '../common/orderUtils';
+import { safeString } from '../common/orderUtils';
 
 function OrdersListPage() {
-    const { orders, fetchOrders, setOrders, loading, wilayas } = useAppData();
+    const { orders, fetchOrders, setOrders, loading } = useAppData();
     const [filterText, setFilterText] = useState('');
     const [statusFilter, setStatusFilter] = useState('Tous');
+    const [remarkFilter, setRemarkFilter] = useState(false);
 
     const { toast, confirm } = useUI();
     const { availableStates } = useStates();
@@ -34,144 +31,19 @@ function OrdersListPage() {
     const [bulkState, setBulkState] = useState('');
     const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
-    // Noest Details State
-    const [selectedNoestOrder, setSelectedNoestOrder] = useState(null);
     const [expandedOrderId, setExpandedOrderId] = useState(null);
-    const [noestData, setNoestData] = useState({});
-
-    // --- Noest Sync Logic ---
-    const handleSyncNoest = async () => {
-        const updatesToSync = orders.filter(o => {
-            const tr = noestData[o.tracking];
-            return tr && tr.category && o.state !== tr.category;
-        }).map(o => ({
-            rowId: o.rowId,
-            orderAtIndex: o,
-            newState: noestData[o.tracking].category
-        }));
-
-        if (updatesToSync.length === 0) {
-            toast.info("Tout est déjà synchronisé ou aucune donnée de suivi n'est chargée.");
-            return;
-        }
-
-        const confirmed = await confirm({
-            title: "Synchroniser les états ?",
-            message: `Voulez-vous mettre à jour l'état de ${updatesToSync.length} commandes selon le suivi Noest ?`,
-            type: "confirm",
-            confirmText: "Oui, synchroniser",
-            cancelText: "Annuler"
-        });
-
-        if (!confirmed) return;
-
-        try {
-            const updatePromises = updatesToSync.map(update => {
-                const payload = { ...update.orderAtIndex, state: update.newState };
-                return updateOrder(update.rowId, payload);
-            });
-
-            await Promise.all(updatePromises);
-            toast.success(`${updatesToSync.length} commandes synchronisées !`);
-            fetchOrders(true);
-        } catch (error) {
-            console.error(error);
-            toast.error("Erreur lors de la synchronisation");
-        }
-    };
-    // --- Noest Tracking Logic ---
-    const fetchNoestTracking = async () => {
-        const trackedOrders = orders.filter(o => o.tracking && String(o.tracking).trim().length > 5);
-        const trackingsToFetch = trackedOrders.map(o => o.tracking);
-
-        if (trackingsToFetch.length === 0) {
-            toast.info("Aucune commande avec tracking à mettre à jour.");
-            return;
-        }
-
-        try {
-            const result = await getNoestTrackingInfo(trackingsToFetch);
-            console.log(result);
-            const newMap = {};
-            Object.values(result).forEach(item => {
-                const info = item.OrderInfo || {};
-                const activities = item.activity || [];
-
-                const sortedActivities = activities.map(act => ({
-                    ...act,
-                    parsedDate: parseNoestDate(act.date)
-                })).sort((a, b) => b.parsedDate - a.parsedDate);
-
-                const latest = sortedActivities[0] || {};
-                const isStopDesk = Number(info.stop_desk) === 1;
-                const category = getCategoryFromEvent(latest.event_key, latest.event || info.current_status, isStopDesk);
-                const wilayaName = (wilayas || []).find(w => w.code == info.wilaya_id)?.nom || '';
-
-                newMap[info.tracking] = {
-                    driver_name: info.driver_name,
-                    driver_phone: info.driver_phone,
-                    status: latest.event || info.current_status || 'En attente',
-                    category: category,
-                    status_class: latest['badge-class'],
-                    activities: sortedActivities.map(a => ({ ...a, date: formatNoestDate(a.parsedDate) })),
-                    wilaya_name: wilayaName,
-                    amount: info.montant,
-                };
-            });
-
-            setNoestData(prev => ({ ...prev, ...newMap }));
-            toast.success("Suivi Noest actualisé !");
-        } catch (error) {
-            console.error(error);
-            toast.error("Erreur lors de l'actualisation Noest");
-        }
-    };
-
-
 
     const handleBackToList = () => {
         setViewMode('list');
         setCurrentOrderId(null);
-        fetchOrders(true); // Refresh data to show changes
+        fetchOrders(true);
     };
 
     useEffect(() => {
-        // Initial fetch (lazy load)
         if (fetchOrders) fetchOrders();
     }, []);
 
-    // Auto-load Noest tracking data when orders are loaded
-    useEffect(() => {
-        if (!loading && orders.length > 0) {
-            const hasTracking = orders.some(o => o.tracking && String(o.tracking).trim().length > 5);
-            if (hasTracking && Object.keys(noestData).length === 0) {
-                // Only auto-load if we don't have Noest data yet
-                fetchNoestTracking();
-            }
-        }
-    }, [loading, orders]);
 
-    const handleDelete = async (id, ref) => {
-        const confirmed = await confirm({
-            title: "Supprimer la commande ?",
-            message: `Êtes - vous sûr de vouloir supprimer la commande ${ref} ? Cette action est irréversible.`,
-            type: "danger",
-            confirmText: "Oui, supprimer",
-            cancelText: "Annuler"
-        });
-
-        if (confirmed) {
-            try {
-                await deleteOrder(id);
-                setOrders(current => current.filter(o => o.rowId !== id));
-                setSelectedOrders(current => current.filter(sid => sid !== id));
-                toast.success("Commande supprimée avec succès");
-            } catch (error) {
-                toast.error("Erreur lors de la suppression");
-                console.error(error);
-            }
-        }
-    };
 
     const handleExportFiltered = async () => {
         if (filteredOrders.length === 0) {
@@ -198,35 +70,8 @@ function OrdersListPage() {
         toast.success("Sélection exportée en PDF !");
     };
 
-    const handleSendToNoest = async (rowId, ref) => {
-        const confirmed = await confirm({
-            title: "Envoyer vers Noest ?",
-            message: `Voulez - vous envoyer la commande ${ref} vers Noest Express ? Un numéro de tracking sera généré.`,
-            type: "confirm",
-            confirmText: "Oui, envoyer",
-            cancelText: "Annuler"
-        });
 
-        if (confirmed) {
-            try {
-                //console.log(rowId);
-                const result = await sendToNoest(rowId);
-                toast.success(`Commande envoyée! Tracking: ${result.tracking} `);
-                fetchOrders(true); // Refresh to show updated state
-            } catch (error) {
-                toast.error("Erreur lors de l'envoi vers Noest");
-                console.error(error);
-            }
-        }
-    };
 
-    const wilayaMap = useMemo(() => {
-        const map = {};
-        (wilayas || []).forEach(w => {
-            if (w && w.code) map[String(w.code)] = w.nom;
-        });
-        return map;
-    }, [wilayas]);
 
     const filteredOrders = useMemo(() => {
         const query = (filterText || "").toLowerCase().trim();
@@ -261,12 +106,14 @@ function OrdersListPage() {
                 order.wilaya.toLowerCase().includes(query) ||
                 productText.includes(query)
             );
+        }).filter(order => {
+            if (!remarkFilter) return true;
+            const note = (order.note || order.remarque || '').trim();
+            return note.length > 0;
         });
-    }, [orders, filterText, statusFilter]);
+    }, [orders, filterText, statusFilter, remarkFilter]);
 
-    const paginatedOrders = useMemo(() => {
-        return filteredOrders.map(o => noestData[o.tracking] ? { ...o, ...noestData[o.tracking] } : o);
-    }, [filteredOrders, noestData]);
+
 
     const statusCounts = useMemo(() => {
         const counts = { 'Tous': (orders || []).length };
@@ -481,8 +328,6 @@ function OrdersListPage() {
                     filteredCount={filteredOrders.length}
                     filterText={filterText}
                     setFilterText={setFilterText}
-                    onRefreshNoest={fetchNoestTracking}
-                    onSyncNoest={handleSyncNoest}
                     onRefreshOrders={async () => {
                         await fetchOrders(true);
                         toast.success("Liste actualisée");
@@ -492,6 +337,8 @@ function OrdersListPage() {
                     statusFilter={statusFilter}
                     setStatusFilter={setStatusFilter}
                     statusCounts={statusCounts}
+                    remarkFilter={remarkFilter}
+                    setRemarkFilter={setRemarkFilter}
                 />
 
                 <OrdersBulkActions
@@ -506,7 +353,7 @@ function OrdersListPage() {
                 />
 
                 <OrdersTable
-                    orders={paginatedOrders}
+                    orders={filteredOrders}
                     loading={loading}
                     selectedOrders={selectedOrders}
                     isAllSelected={filteredOrders.length > 0 && filteredOrders.every(o => selectedOrders.includes(o.rowId))}
@@ -514,7 +361,6 @@ function OrdersListPage() {
                     toggleSelectRow={toggleSelectRow}
                     handleSingleSendToNoest={handleSingleSendToNoest}
                     handleDeleteOrder={handleDeleteOrder}
-                    setSelectedNoestOrder={setSelectedNoestOrder}
                     setCurrentOrderId={setCurrentOrderId}
                     setViewMode={setViewMode}
                 />
@@ -540,7 +386,7 @@ function OrdersListPage() {
                                 </label>
                             </div>
 
-                            {paginatedOrders.map((order) => (
+                            {filteredOrders.map((order) => (
                                 <MobileOrderCard
                                     key={order.rowId}
                                     order={order}
@@ -560,13 +406,7 @@ function OrdersListPage() {
                 </div >
 
 
-            </section >
-            {selectedNoestOrder && (
-                <OrderDetailsModal
-                    order={selectedNoestOrder}
-                    onClose={() => setSelectedNoestOrder(null)}
-                />
-            )}
+            </section>
         </>
     );
 }

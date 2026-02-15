@@ -1,8 +1,9 @@
+
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { getOrders } from '../services/api';
+import { getOrders } from '../../services/api';
 import { ArrowLeft, Package, User, Phone, MapPin, Calendar, DollarSign, Truck, FileText, Info } from 'lucide-react';
-import { useAppData } from '../context/AppDataContext';
+import { useAppData } from '../../context/AppDataContext';
 
 function OrderDetailsPage({ orderId, onBack }) {
     const params = useParams();
@@ -58,8 +59,8 @@ function OrderDetailsPage({ orderId, onBack }) {
                 </div>
 
                 <div className="pt-2 border-t border-slate-50">
-                    <span className={`inline-block text-center w-full md:w-auto px-4 py-1.5 rounded-full text-sm font-bold shadow-sm
-                      ${(order.state || '').toLowerCase().includes('nouvelle') ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+                    <span className={`inline-block text-center w-full md:w-auto px-4 py-1.5 rounded-full text-sm font-bold shadow-sm 
+                        ${(order.state || '').toLowerCase().includes('nouvelle') ? 'bg-blue-100 text-blue-700 border border-blue-200' :
                             (order.state || '').toLowerCase().includes('atelier') ? 'bg-purple-100 text-purple-700 border border-purple-200' :
                                 (order.state || '').toLowerCase().includes('system') ? 'bg-orange-100 text-orange-700 border border-orange-200' :
                                     (order.state || '').toLowerCase().includes('annuler') ? 'bg-red-100 text-red-700 border border-red-200' :
@@ -138,6 +139,7 @@ function OrderDetailsPage({ orderId, onBack }) {
                     </h3>
                     <div className="space-y-3">
                         <div>
+                            <div className="text-xs text-slate-400 text-lg">Produit</div>
                             <div className="font-medium text-slate-800">
                                 {typeof order.product === 'object' ? JSON.stringify(order.product) : (order.product || '-')}
                             </div>

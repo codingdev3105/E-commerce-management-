@@ -1,7 +1,8 @@
+
 import { useState, useEffect } from 'react';
 import { MapPin, Building, Truck, Search, Map, Copy } from 'lucide-react';
-import { useUI } from '../context/UIContext';
-import { useAppData } from '../context/AppDataContext';
+import { useUI } from '../../context/UIContext';
+import { useAppData } from '../../context/AppDataContext';
 
 function LocationsPage() {
     const [activeTab, setActiveTab] = useState('wilayas');

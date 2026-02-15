@@ -1,6 +1,5 @@
 import { Eye, Truck, Home, RefreshCw, Trash2, Pencil, Send, Phone, MapPin, Check, Box, StickyNote, Calendar } from 'lucide-react';
 import { getStateColor } from '../../common/orderUtils';
-import { getNoestStatusStyle } from '../../common/noestUtils';
 
 export default function MobileOrderCard({
     order,
@@ -159,49 +158,6 @@ export default function MobileOrderCard({
                             </div>
                         </div>
 
-                        {/* Noest Info Section */}
-                        {/* Noest Info Section - Only if Tracking exists */}
-                        {order.tracking && (
-                            <div className="mt-3 pt-3 border-t border-slate-200/60 dashed">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <span className="bg-slate-200 h-px flex-1"></span>
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase">Suivi Noest</span>
-                                    <span className="bg-slate-200 h-px flex-1"></span>
-                                </div>
-
-                                <div className="flex flex-wrap gap-2 mb-3">
-                                    <div className="bg-white px-2 py-1 rounded border border-slate-200 text-[10px] font-mono text-slate-600">
-                                        Track: <span className="font-bold text-blue-600 select-all">{order.tracking}</span>
-                                    </div>
-                                </div>
-
-                                {(order.driver_name || order.driver_phone) && (
-                                    <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-lg p-2 mb-4 text-indigo-800">
-                                        <div className="w-6 h-6 rounded-full bg-indigo-200 flex items-center justify-center shrink-0">
-                                            <Truck className="w-3 h-3 text-indigo-700" />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <div className="font-bold text-xs truncate">{order.driver_name}</div>
-                                            <div className="font-mono text-[10px]">{order.driver_phone}</div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="relative pl-3 border-l border-slate-200 space-y-3">
-                                    {(order.activities || []).map((act, idx) => (
-                                        <div key={idx} className="relative">
-                                            <div className={`absolute -left-[16.5px] top-1 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm ${idx === 0 ? 'bg-blue-600' : 'bg-slate-300'}`}></div>
-                                            <div className="flex flex-col gap-1">
-                                                <span className={`text-xs font-bold leading-tight ${idx === 0 ? 'text-blue-700' : 'text-slate-700'}`}>{act.event}</span>
-                                                <span className="text-[10px] text-slate-400 font-mono">{act.date}</span>
-                                                {act.content && <p className="text-xs text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 mt-1 italic">"{act.content}"</p>}
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {(!order.activities || order.activities.length === 0) && <div className="text-xs text-slate-400 italic">Aucune activité enregistrée</div>}
-                                </div>
-                            </div>
-                        )}
                     </div>
                 )}
             </div>

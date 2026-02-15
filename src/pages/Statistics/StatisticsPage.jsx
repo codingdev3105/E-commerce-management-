@@ -1,8 +1,9 @@
+
 import { useState, useEffect, useMemo } from 'react';
-import { useAppData } from '../context/AppDataContext';
-import { useUI } from '../context/UIContext';
+import { useAppData } from '../../context/AppDataContext';
+import { useUI } from '../../context/UIContext';
 import { BarChart, ShoppingBag, Truck, Activity, XCircle, CheckCircle, RefreshCw } from 'lucide-react';
-import { STATUS_COLORS } from '../pages/common/orderUtils';
+import { STATUS_COLORS } from '../common/orderUtils';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
     PieChart, Pie, Cell, Legend,

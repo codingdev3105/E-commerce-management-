@@ -1,18 +1,18 @@
 import React from 'react';
-import { Search, X, Truck, RefreshCw, FileText, ArrowRightLeft } from 'lucide-react';
+import { Search, X, RefreshCw, FileText, StickyNote } from 'lucide-react';
 
 export default function OrdersFilterBar({
     filteredCount,
     filterText,
     setFilterText,
-    onRefreshNoest,
-    onSyncNoest,
     onRefreshOrders,
     onExportPDF,
     availableStatuses,
     statusFilter,
     setStatusFilter,
-    statusCounts
+    statusCounts,
+    remarkFilter,
+    setRemarkFilter
 }) {
     return (
         <div className="px-4 py-4 md:px-8 md:py-6 border-b border-slate-100 flex flex-col gap-3 md:gap-4">
@@ -41,19 +41,17 @@ export default function OrdersFilterBar({
                     </div>
 
                     <button
-                        onClick={onRefreshNoest}
-                        className="flex items-center justify-center h-10 w-10 bg-white border border-slate-200 text-blue-600 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all shadow-sm"
-                        title="Actualiser Suivi Noest"
+                        onClick={() => setRemarkFilter(!remarkFilter)}
+                        className={`flex items-center justify-center h-10 w-10 rounded-lg border transition-all shadow-sm ${remarkFilter
+                            ? 'bg-yellow-100 border-yellow-400 text-yellow-700'
+                            : 'bg-white border-slate-200 text-slate-400 hover:bg-yellow-50 hover:text-yellow-600 hover:border-yellow-300'
+                            }`}
+                        title={remarkFilter ? 'Afficher toutes les commandes' : 'Filtrer par remarque'}
                     >
-                        <Truck className="w-4 h-4" />
+                        <StickyNote className="w-4 h-4" />
                     </button>
-                    <button
-                        onClick={onSyncNoest}
-                        className="flex items-center justify-center h-10 w-10 bg-white border border-slate-200 text-green-600 rounded-lg hover:bg-green-50 hover:border-green-300 transition-all shadow-sm"
-                        title="Synchroniser avec Noest"
-                    >
-                        <ArrowRightLeft className="w-4 h-4" />
-                    </button>
+
+
 
                     <button
                         onClick={onRefreshOrders}

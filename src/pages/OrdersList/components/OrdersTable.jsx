@@ -1,7 +1,6 @@
 import React from 'react';
-import { Eye, Truck, Home, Pencil, Send, Trash2 } from 'lucide-react';
+import { Truck, Home, Pencil, Send, Trash2 } from 'lucide-react';
 import { getStateColor } from '../../common/orderUtils';
-import { getNoestStatusStyle } from '../../common/noestUtils';
 
 export default function OrdersTable({
     orders,
@@ -12,7 +11,6 @@ export default function OrdersTable({
     toggleSelectRow,
     handleSingleSendToNoest,
     handleDeleteOrder,
-    setSelectedNoestOrder,
     setCurrentOrderId,
     setViewMode
 }) {
@@ -132,20 +130,11 @@ export default function OrdersTable({
                                     <div className="flex flex-col items-center gap-1.5">
                                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold shadow-sm border ${getStateColor(order.state)}`}>
                                             {order.state}
-                                        </span> 
+                                        </span>
                                     </div>
                                 </td>
                                 <td className="px-3 py-2 text-center">
                                     <div className="flex items-center justify-center gap-1">
-                                        {order.tracking && (
-                                            <button
-                                                onClick={() => setSelectedNoestOrder(order)}
-                                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                                title="Détails de livraison"
-                                            >
-                                                <Eye className="w-3.5 h-3.5" />
-                                            </button>
-                                        )}
 
                                         <button
                                             onClick={() => { setCurrentOrderId(order.rowId); setViewMode('edit'); }}

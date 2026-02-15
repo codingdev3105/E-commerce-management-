@@ -1,18 +1,87 @@
+
 export const getCategoryFromEvent = (eventKey, eventLabel, isStopDesk) => {
     const key = (eventKey || '').toLowerCase();
 
-    if (key.includes('return') || key.includes('retour') || key.includes('echoué') || key.includes('echoe') || key === 'annulation_dispatch_retour' || key === 'cancel_return_dispatched_to_partenaire' || key === 'colis_retour_transmit_to_partner' || key === 'livraison_echoe_recu') return 'Retour';
-    if (key.includes('verssement') || key.includes('cash_by_partener') || key === 'extra_fee') return 'Finance';
-    if (key === 'edited_informations' || key === 'edit_wilaya' || key === 'edit_price' || key.includes('exchange')) return 'En modification';
+    // --- 9. Retour ---
+    if (
+        key.includes('return') ||
+        key.includes('retour') ||
+        key.includes('echoué') ||
+        key.includes('echoe') ||
+        key === 'annulation_dispatch_retour' ||
+        key === 'cancel_return_dispatched_to_partenaire' ||
+        key === 'colis_retour_transmit_to_partner' ||
+        key === 'livraison_echoe_recu'
+    ) return 'Retour';
+
+    // --- 8. Finance ---
+    if (
+        key.includes('verssement') ||
+        key.includes('cash_by_partener') ||
+        key === 'extra_fee'
+    ) return 'Finance';
+
+    // --- 7. En Modification (NOUVELLE CATEGORIE) ---
+    if (
+        key === 'edited_informations' ||
+        key === 'edit_wilaya' ||
+        key === 'edit_price' ||
+        key.includes('exchange') // Les échanges sont des modifications de commande
+    ) return 'En modification';
+
+    // --- 6. Livré ---
     if (key === 'livrre' || key === 'livred' || key === 'livré') return 'Livré';
-    if (key === 'colis_suspendu' || key.includes('ask_to_delete')) return 'Suspendu';
-    if (key === 'fdr_activated' || key === 'mise_a_jour' || key === 'validation_reception') return isStopDesk ? 'En Hub' : 'En livraison';
-    if (key === 'sent_to_redispach' || key === 'pickup_picked_recu' || key === 'return_dispatched_to_warehouse') return 'En expédition';
-    if (key === 'upload') return 'Upload';
-    if (key === 'customer_validation' || key === 'validation_collect_colis' || key === 'pickuped' || key === 'valid_return_pickup' || key === 'validation_reception_admin') return 'En traitement';
+
+    // --- 5. Suspendus ---
+    if (
+        key === 'colis_suspendu' ||
+        key.includes('ask_to_delete') // Demandes de suppression
+    ) return 'Suspendu';
+
+
+    // --- 4. En Livraison / En Hub ---
+    // Règle d'Or Noest: 
+    // - Si StopDesk (isStopDesk == 1) -> "En Hub"
+    // - Si Domicile (isStopDesk == 0) -> "En Livraison"
+    if (
+        key === 'fdr_activated' ||      // En livraison (Feuille de route)
+        key === 'mise_a_jour' ||        // Tentative de livraison
+        key === 'validation_reception'  // Enlevé par le livreur / Arrivé station
+    ) {
+        return isStopDesk ? 'En Hub' : 'En livraison';
+    }
+
+    // --- 3. En Expédition (Vers Hub) ---
+    if (
+        key === 'sent_to_redispach' ||      // En redispach
+        key === 'pickup_picked_recu' ||     // Reçu par partenaire (hub départ)
+        key === 'return_dispatched_to_warehouse' // Retour vers entrepôt
+    ) {
+        return 'En expédition';
+    }
+
+    // --- 2. Upload sur le systeme ---
+    if (
+        key === 'upload'
+    ) return 'Upload';
+
+    // --- 2. En Traitement ---
+    if (
+        key === 'customer_validation' ||
+        key === 'validation_collect_colis' ||
+        key === 'pickuped' ||
+        key === 'valid_return_pickup' ||
+        key === 'validation_reception_admin'
+    ) {
+        return 'En traitement';
+    }
+
+    // Fallback générique
     if (key.includes('valid')) return 'En traitement';
+
     return 'Autres';
 };
+
 
 export const parseNoestDate = (dateStr) => {
     if (!dateStr) return new Date(0);
@@ -29,6 +98,7 @@ export const formatNoestDate = (dateObj) => {
     const pad = (n) => n.toString().padStart(2, '0');
     return `${pad(dateObj.getDate())}-${pad(dateObj.getMonth() + 1)}-${dateObj.getFullYear()} ${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}`;
 };
+
 export const getNoestStatusStyle = (status, statusClass) => {
     if (statusClass) {
         if (statusClass.includes('success')) return 'text-green-700 bg-green-50 border-green-200';
