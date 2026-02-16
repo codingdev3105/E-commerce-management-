@@ -13,6 +13,7 @@ export default function MobileOrderCard({
     setExpandedOrderId
 }) {
     const isEditable = ['Nouvelle', 'Atelier'].some(s => (order.state || '').includes(s));
+    const canEditOrDelete = ['Nouvelle', 'Atelier', 'Annul'].some(s => (order.state || '').includes(s));
 
     return (
         <div className={`bg-white rounded-xl border transition-all duration-200 ${isSelected ? 'border-blue-500 shadow-md bg-blue-50/10' : 'border-slate-100 shadow-sm hover:border-slate-300'}`}>
@@ -81,8 +82,8 @@ export default function MobileOrderCard({
 
                         <button
                             onClick={() => { setCurrentOrderId(order.rowId); setViewMode('edit'); }}
-                            disabled={!isEditable}
-                            className={`p-1.5 rounded border border-slate-200 transition-colors ${!isEditable
+                            disabled={!canEditOrDelete}
+                            className={`p-1.5 rounded border border-slate-200 transition-colors ${!canEditOrDelete
                                 ? 'text-slate-200 cursor-not-allowed bg-slate-50'
                                 : 'text-slate-400 hover:text-green-600 hover:bg-green-50'
                                 }`}
@@ -105,12 +106,12 @@ export default function MobileOrderCard({
 
                         <button
                             onClick={() => handleDelete(order.rowId, order.reference)}
-                            className={`p-1.5 rounded border border-slate-200 transition-colors ${isEditable
+                            className={`p-1.5 rounded border border-slate-200 transition-colors ${canEditOrDelete
                                 ? 'text-slate-400 hover:text-red-600 hover:bg-red-50'
                                 : 'text-slate-200 cursor-not-allowed opacity-50'
                                 }`}
                             title="Supprimer"
-                            disabled={!isEditable}
+                            disabled={!canEditOrDelete}
                         >
                             <Trash2 className="w-3.5 h-3.5" />
                         </button>

@@ -138,8 +138,8 @@ export default function OrdersTable({
 
                                         <button
                                             onClick={() => { setCurrentOrderId(order.rowId); setViewMode('edit'); }}
-                                            disabled={!['Nouvelle', 'Atelier'].some(s => (order.state || '').includes(s))}
-                                            className={`p-1.5 rounded transition-colors ${!['Nouvelle', 'Atelier'].some(s => (order.state || '').includes(s))
+                                            disabled={!['Nouvelle', 'Atelier', 'Annul'].some(s => (order.state || '').includes(s))}
+                                            className={`p-1.5 rounded transition-colors ${!['Nouvelle', 'Atelier', 'Annul'].some(s => (order.state || '').includes(s))
                                                 ? 'text-slate-200 cursor-not-allowed'
                                                 : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50'
                                                 }`}
@@ -162,8 +162,8 @@ export default function OrdersTable({
 
                                         <button
                                             onClick={() => handleDeleteOrder(order.rowId, order.reference)}
-                                            disabled={!['Nouvelle', 'Atelier'].some(s => (order.state || '').includes(s))}
-                                            className={`p-1.5 rounded transition-colors ${!['Nouvelle', 'Atelier'].some(s => (order.state || '').includes(s))
+                                            disabled={!['Nouvelle', 'Atelier', 'Annul'].some(s => (order.state || '').includes(s))}
+                                            className={`p-1.5 rounded transition-colors ${!['Nouvelle', 'Atelier', 'Annul'].some(s => (order.state || '').includes(s))
                                                 ? 'text-slate-200 cursor-not-allowed'
                                                 : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
                                                 }`}
