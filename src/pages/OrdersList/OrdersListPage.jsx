@@ -103,7 +103,8 @@ function OrdersListPage() {
                 order.date.toLowerCase().includes(query) ||
                 order.address.toLowerCase().includes(query) ||
                 order.commune.toLowerCase().includes(query) ||
-                order.wilaya.toLowerCase().includes(query) ||
+                order.wilaya.toLowerCase().includes(query) || 
+                order.note.toLowerCase().includes(query) ||
                 productText.includes(query)
             );
         }).filter(order => {
