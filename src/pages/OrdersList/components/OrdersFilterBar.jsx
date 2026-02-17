@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, X, RefreshCw, FileText, StickyNote } from 'lucide-react';
+import { Search, X, RefreshCw, FileText, StickyNote, Truck } from 'lucide-react';
 
 export default function OrdersFilterBar({
     filteredCount,
@@ -12,7 +12,9 @@ export default function OrdersFilterBar({
     setStatusFilter,
     statusCounts,
     remarkFilter,
-    setRemarkFilter
+    setRemarkFilter,
+    shippedFilter,
+    setShippedFilter
 }) {
     return (
         <div className="px-4 py-4 md:px-8 md:py-6 border-b border-slate-100 flex flex-col gap-3 md:gap-4">
@@ -49,6 +51,17 @@ export default function OrdersFilterBar({
                         title={remarkFilter ? 'Afficher toutes les commandes' : 'Filtrer par remarque'}
                     >
                         <StickyNote className="w-4 h-4" />
+                    </button>
+
+                    <button
+                        onClick={() => setShippedFilter(!shippedFilter)}
+                        className={`flex items-center justify-center h-10 w-10 rounded-lg border transition-all shadow-sm ${shippedFilter
+                            ? 'bg-purple-100 border-purple-400 text-purple-700'
+                            : 'bg-white border-slate-200 text-slate-400 hover:bg-purple-50 hover:text-purple-600 hover:border-purple-300'
+                            }`}
+                        title={shippedFilter ? 'Afficher toutes les commandes' : 'Filtrer les commandes envoyées'}
+                    >
+                        <Truck className="w-4 h-4" />
                     </button>
 
 

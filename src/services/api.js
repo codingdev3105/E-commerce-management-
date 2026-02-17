@@ -108,5 +108,10 @@ export const updateMessageStatus = async (id, status = 'OUI') => {
     return response.data;
 };
 
+export const updateShippedStatus = async (id, status = 'OUI') => {
+    const response = await api.put(`/commandes/${id}/shipped-status`, { status });
+    return response.data;
+};
+
 
 export default api;

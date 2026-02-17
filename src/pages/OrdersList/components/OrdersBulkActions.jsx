@@ -1,5 +1,5 @@
 import React from 'react';
-import { Send, FileText } from 'lucide-react';
+import { Send, FileText, Truck } from 'lucide-react';
 
 export default function OrdersBulkActions({
     selectedCount,
@@ -9,6 +9,7 @@ export default function OrdersBulkActions({
     handleBulkUpdate,
     isBulkUpdating,
     handleBulkSendToNoest,
+    handleBulkMarkShipped,
     handleExportSelection
 }) {
     if (selectedCount === 0) return null;
@@ -47,6 +48,16 @@ export default function OrdersBulkActions({
             >
                 <Send className="w-4 h-4" />
                 {isBulkUpdating ? '...' : 'Envoyer vers Noest'}
+            </button>
+
+            <button
+                onClick={handleBulkMarkShipped}
+                disabled={isBulkUpdating}
+                className="w-full md:w-auto px-4 py-2 bg-purple-600 text-white text-sm font-bold rounded-md hover:bg-purple-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                title="Marquer comme envoyé à la société"
+            >
+                <Truck className="w-4 h-4" />
+                {isBulkUpdating ? '...' : 'Marquer Envoyé'}
             </button>
 
             <div className="h-6 w-px bg-blue-200 mx-1 hidden md:block"></div>

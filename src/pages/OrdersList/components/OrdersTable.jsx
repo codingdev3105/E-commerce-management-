@@ -1,5 +1,5 @@
 import React from 'react';
-import { Truck, Home, Pencil, Send, Trash2 } from 'lucide-react';
+import { Truck, Home, Pencil, Send, Trash2, PackageCheck } from 'lucide-react';
 import { getStateColor } from '../../common/orderUtils';
 
 export default function OrdersTable({
@@ -11,6 +11,7 @@ export default function OrdersTable({
     toggleSelectRow,
     handleSingleSendToNoest,
     handleDeleteOrder,
+    handleUpdateShipped,
     setCurrentOrderId,
     setViewMode
 }) {
@@ -131,6 +132,12 @@ export default function OrdersTable({
                                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold shadow-sm border ${getStateColor(order.state)}`}>
                                             {order.state}
                                         </span>
+                                        {/* Badge Envoyé société */}
+                                        {order.isShipped && order.state === 'En traitement' && (
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200 uppercase tracking-wide">
+                                                <Truck className="w-3 h-3" /> Envoyé
+                                            </span>
+                                        )}
                                     </div>
                                 </td>
                                 <td className="px-3 py-2 text-center">
@@ -147,6 +154,17 @@ export default function OrdersTable({
                                         >
                                             <Pencil className="w-3.5 h-3.5" />
                                         </button>
+
+                                        {/* Bouton Envoyer Société (seulement si En traitement et pas encore envoyé) */}
+                                        {order.state === 'En traitement' && !order.isShipped && (
+                                            <button
+                                                onClick={() => handleUpdateShipped(order.rowId)}
+                                                className="p-1.5 rounded transition-colors text-slate-400 hover:text-purple-600 hover:bg-purple-50"
+                                                title="Marquer comme envoyé à la société"
+                                            >
+                                                <PackageCheck className="w-3.5 h-3.5" />
+                                            </button>
+                                        )}
 
                                         <button
                                             onClick={() => handleSingleSendToNoest(order.rowId, order.reference)}

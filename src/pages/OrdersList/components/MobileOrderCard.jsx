@@ -1,4 +1,4 @@
-import { Eye, Truck, Home, RefreshCw, Trash2, Pencil, Send, Phone, MapPin, Check, Box, StickyNote, Calendar } from 'lucide-react';
+import { Eye, Truck, Home, RefreshCw, Trash2, Pencil, Send, Phone, MapPin, Check, Box, StickyNote, Calendar, PackageCheck } from 'lucide-react';
 import { getStateColor } from '../../common/orderUtils';
 
 export default function MobileOrderCard({
@@ -7,6 +7,7 @@ export default function MobileOrderCard({
     toggleSelectRow,
     handleSendToNoest,
     handleDelete,
+    handleUpdateShipped,
     setCurrentOrderId,
     setViewMode,
     expandedOrderId,
@@ -40,6 +41,12 @@ export default function MobileOrderCard({
                         <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border whitespace-nowrap ${getStateColor(order.state)}`}>
                             {order.state || 'inconnu'}
                         </span>
+                        {/* Badge Envoyé société */}
+                        {order.isShipped && order.state === 'En traitement' && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200 uppercase tracking-wide">
+                                <Truck className="w-3 h-3" /> Envoyé
+                            </span>
+                        )}
                     </div>
                 </div>
 
@@ -91,6 +98,17 @@ export default function MobileOrderCard({
                         >
                             <Pencil className="w-3.5 h-3.5" />
                         </button>
+
+                        {/* Bouton pour marquer comme envoyé (si En traitement et non envoyé) */}
+                        {order.state === 'En traitement' && !order.isShipped && (
+                            <button
+                                onClick={() => handleUpdateShipped(order.rowId)}
+                                className="p-1.5 rounded border border-slate-200 transition-colors text-slate-400 hover:text-purple-600 hover:bg-purple-50"
+                                title="Marquer comme envoyé à la société"
+                            >
+                                <PackageCheck className="w-3.5 h-3.5" />
+                            </button>
+                        )}
 
                         <button
                             onClick={() => handleSendToNoest(order.rowId, order.reference)}

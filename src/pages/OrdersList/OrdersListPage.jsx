@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { deleteOrder, updateOrder, sendToNoest } from '../../services/api';
+import { deleteOrder, updateOrder, sendToNoest, updateShippedStatus } from '../../services/api';
 import { useUI } from '../../context/UIContext';
 import { useAppData } from '../../context/AppDataContext';
 import { useStates } from '../../context/StatesContext';
@@ -19,6 +19,7 @@ function OrdersListPage() {
     const [filterText, setFilterText] = useState('');
     const [statusFilter, setStatusFilter] = useState('Tous');
     const [remarkFilter, setRemarkFilter] = useState(false);
+    const [shippedFilter, setShippedFilter] = useState(false);
 
     const { toast, confirm } = useUI();
     const { availableStates } = useStates();
@@ -103,16 +104,21 @@ function OrdersListPage() {
                 order.date.toLowerCase().includes(query) ||
                 order.address.toLowerCase().includes(query) ||
                 order.commune.toLowerCase().includes(query) ||
-                order.wilaya.toLowerCase().includes(query) || 
+                order.wilaya.toLowerCase().includes(query) ||
                 order.note.toLowerCase().includes(query) ||
                 productText.includes(query)
             );
         }).filter(order => {
-            if (!remarkFilter) return true;
-            const note = (order.note || order.remarque || '').trim();
-            return note.length > 0;
+            if (remarkFilter) {
+                const note = (order.note || order.remarque || '').trim();
+                if (note.length === 0) return false;
+            }
+            if (shippedFilter) {
+                return order.isShipped === true;
+            }
+            return true;
         });
-    }, [orders, filterText, statusFilter, remarkFilter]);
+    }, [orders, filterText, statusFilter, remarkFilter, shippedFilter]);
 
 
 
@@ -227,14 +233,14 @@ function OrdersListPage() {
         const selectedOrderObjects = orders.filter(o => selectedOrders.includes(o.rowId));
         if (selectedOrderObjects.length === 0) return;
 
-        // Filter valid orders: Must be 'Nouvelle' or 'Atelier'
+        // Filter valid orders: Must be 'Nouvelle', 'Atelier' or 'Annul'
         const validOrders = selectedOrderObjects.filter(o => {
             const s = (o.state || '');
-            return ['Nouvelle', 'Atelier'].some(keyword => s.includes(keyword));
+            return ['Nouvelle', 'Atelier', 'Annul'].some(keyword => s.includes(keyword));
         });
 
         if (validOrders.length === 0) {
-            toast.error("Aucune commande éligible à l'envoi (seules 'Nouvelle' ou 'Atelier' peuvent être envoyées).");
+            toast.error("Aucune commande éligible (seules 'Nouvelle', 'Atelier' ou 'Annul' peuvent être envoyées).");
             return;
         }
 
@@ -270,6 +276,54 @@ function OrdersListPage() {
         } catch (error) {
             console.error("Bulk send failed", error);
             toast.error("Erreur lors de l'envoi groupé");
+        } finally {
+            setIsBulkUpdating(false);
+        }
+    };
+
+    const handleBulkMarkShipped = async () => {
+        const selectedOrderObjects = orders.filter(o => selectedOrders.includes(o.rowId));
+        if (selectedOrderObjects.length === 0) return;
+
+        // Filter valid orders: Must be 'En traitement'
+        const validOrders = selectedOrderObjects.filter(o => o.state === 'En traitement' && !o.isShipped);
+
+        if (validOrders.length === 0) {
+            toast.error("Aucune commande éligible (seules les commandes 'En traitement' non envoyées peuvent être marquées).");
+            return;
+        }
+
+        const confirmed = await confirm({
+            title: "Marquer comme envoyé",
+            message: `Voulez-vous marquer ${validOrders.length} commande(s) comme envoyée(s) à la société ?`,
+            type: "confirm",
+            confirmText: "Oui, tout marquer",
+        });
+
+        if (!confirmed) return;
+
+        setIsBulkUpdating(true);
+        let successCount = 0;
+        let failCount = 0;
+
+        try {
+            const results = await Promise.allSettled(
+                validOrders.map(o => updateShippedStatus(o.rowId, 'OUI'))
+            );
+
+            results.forEach(res => {
+                if (res.status === 'fulfilled') successCount++;
+                else failCount++;
+            });
+
+            if (successCount > 0) toast.success(`${successCount} commandes marquées envoyées !`);
+            if (failCount > 0) toast.error(`${failCount} échecs.`);
+
+            setSelectedOrders([]);
+            fetchOrders(true);
+        } catch (error) {
+            console.error("Bulk mark shipped failed", error);
+            toast.error("Erreur lors de l'action groupée");
         } finally {
             setIsBulkUpdating(false);
         }
@@ -314,6 +368,25 @@ function OrdersListPage() {
         }
     };
 
+    const handleUpdateShipped = async (id) => {
+        const confirmed = await confirm({
+            title: "Confirmation d'envoi société",
+            message: "Marquer cette commande comme envoyée à la société de livraison ?",
+            type: "confirm",
+            confirmText: "Oui, marquer envoyé"
+        });
+        if (!confirmed) return;
+
+        try {
+            await updateShippedStatus(id, 'OUI');
+            toast.success("Statut mis à jour !");
+            fetchOrders(true);
+        } catch (error) {
+            console.error(error);
+            toast.error("Erreur mise à jour.");
+        }
+    };
+
     if (viewMode === 'details' && currentOrderId) {
         return <OrderDetailsPage orderId={currentOrderId} onBack={handleBackToList} />;
     }
@@ -340,6 +413,8 @@ function OrdersListPage() {
                     statusCounts={statusCounts}
                     remarkFilter={remarkFilter}
                     setRemarkFilter={setRemarkFilter}
+                    shippedFilter={shippedFilter}
+                    setShippedFilter={setShippedFilter}
                 />
 
                 <OrdersBulkActions
@@ -350,6 +425,7 @@ function OrdersListPage() {
                     handleBulkUpdate={handleBulkUpdate}
                     isBulkUpdating={isBulkUpdating}
                     handleBulkSendToNoest={handleBulkSendToNoest}
+                    handleBulkMarkShipped={handleBulkMarkShipped}
                     handleExportSelection={handleExportSelection}
                 />
 
@@ -362,6 +438,7 @@ function OrdersListPage() {
                     toggleSelectRow={toggleSelectRow}
                     handleSingleSendToNoest={handleSingleSendToNoest}
                     handleDeleteOrder={handleDeleteOrder}
+                    handleUpdateShipped={handleUpdateShipped}
                     setCurrentOrderId={setCurrentOrderId}
                     setViewMode={setViewMode}
                 />
@@ -395,6 +472,7 @@ function OrdersListPage() {
                                     toggleSelectRow={toggleSelectRow}
                                     handleSendToNoest={handleSingleSendToNoest}
                                     handleDelete={handleDeleteOrder}
+                                    handleUpdateShipped={handleUpdateShipped}
                                     setCurrentOrderId={setCurrentOrderId}
                                     setViewMode={setViewMode}
                                     expandedOrderId={expandedOrderId}
