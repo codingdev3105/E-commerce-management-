@@ -4,7 +4,7 @@ import axios from 'axios';
 // 'http://localhost:3001/api' , import.meta.env.VITE_API_URL
 // Use environment variable if available, otherwise fallback to localhost for dev
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const baseURL = 'http://localhost:3001/api';
 const api = axios.create({
     baseURL: baseURL,
 });
@@ -76,7 +76,7 @@ export const sendToNoest = async (rowId) => {
 
 export const getNoestTrackingInfo = async (trackingsArray) => {
     const response = await api.post('/noest/trackings', { trackingsArray });
-    // console.log(response.data);
+    console.log(response.data);
     return response.data;
 };
 
