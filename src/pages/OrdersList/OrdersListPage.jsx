@@ -88,6 +88,7 @@ function OrdersListPage() {
             // 2. Special keywords
             if (query === "domicile") return !order.isStopDesk;
             if (query === "stopdesk") return order.isStopDesk;
+            if (query === "echange" || query === "échange") return order.isExchange;
 
             // 3. Multi-field search
             // Since data is normalized, we can safely use includes

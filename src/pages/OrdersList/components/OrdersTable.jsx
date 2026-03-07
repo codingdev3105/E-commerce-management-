@@ -1,5 +1,5 @@
 import React from 'react';
-import { Truck, Home, Pencil, Send, Trash2, PackageCheck } from 'lucide-react';
+import { Truck, Home, Pencil, Send, Trash2, PackageCheck, RefreshCw } from 'lucide-react';
 import { getStateColor } from '../../common/orderUtils';
 
 export default function OrdersTable({
@@ -111,7 +111,12 @@ export default function OrdersTable({
                                             )}
                                         </div>
 
-                                        <div className="shrink-0 ml-2">
+                                        <div className="shrink-0 ml-2 flex gap-1 items-center">
+                                            {order.isExchange && (
+                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold text-orange-700 bg-orange-50 border border-orange-200 uppercase tracking-wide">
+                                                    <RefreshCw className="w-3 h-3" /> Échange
+                                                </span>
+                                            )}
                                             {order.isStopDesk ? (
                                                 <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wide">
                                                     <Truck className="w-3 h-3" /> Stop
