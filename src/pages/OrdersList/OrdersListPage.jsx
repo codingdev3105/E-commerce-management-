@@ -74,12 +74,16 @@ function OrdersListPage() {
 
 
 
+    const LOCAL_STATUSES = ['Nouvelle', 'Atelier', 'Annuler'];
+
     const filteredOrders = useMemo(() => {
         const query = (filterText || "").toLowerCase().trim();
 
         return (orders || []).filter(order => {
             // 1. Status Filter
-            if (statusFilter !== 'Tous' && order.state !== statusFilter) {
+            if (statusFilter === 'noest') {
+                if (LOCAL_STATUSES.includes(order.state)) return false;
+            } else if (statusFilter !== 'Tous' && order.state !== statusFilter) {
                 return false;
             }
 
@@ -119,26 +123,30 @@ function OrdersListPage() {
             }
             return true;
         });
-    }, [orders, filterText, statusFilter, remarkFilter, shippedFilter]);
-
-
+    }, [orders, filterText, statusFilter, remarkFilter, shippedFilter, LOCAL_STATUSES]);
 
     const statusCounts = useMemo(() => {
-        const counts = { 'Tous': (orders || []).length };
+        const counts = { 'Tous': (orders || []).length, 'noest': 0 };
+        // Initialize local statuses
+        LOCAL_STATUSES.forEach(s => counts[s] = 0);
+
         (orders || []).forEach(order => {
             const s = order.state || 'Inconnu';
-            counts[s] = (counts[s] || 0) + 1;
+            if (LOCAL_STATUSES.includes(s)) {
+                counts[s] = (counts[s] || 0) + 1;
+            } else {
+                counts['noest'] = (counts['noest'] || 0) + 1;
+            }
         });
         return counts;
-    }, [orders]);
+    }, [orders, LOCAL_STATUSES]);
 
     const availableStatuses = useMemo(() => {
-        try {
-            return ['Tous', ...Object.keys(statusCounts || {}).filter(s => s !== 'Tous')];
-        } catch (e) {
-            return ['Tous'];
-        }
-    }, [statusCounts]);
+        return ['Tous', ...LOCAL_STATUSES, 'noest'].filter(s => {
+            if (s === 'Tous') return true;
+            return (statusCounts[s] || 0) > 0;
+        });
+    }, [LOCAL_STATUSES, statusCounts]);
 
     // Selection Logic
     const toggleSelectAll = (e) => {

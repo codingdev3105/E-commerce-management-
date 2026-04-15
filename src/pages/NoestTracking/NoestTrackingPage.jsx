@@ -23,7 +23,12 @@ function NoestTrackingPage() {
         setLoading(true);
         try {
             const sheetOrders = await getOrders();
-            const trackedOrders = sheetOrders.filter(o => o.tracking && String(o.tracking).trim().length > 5);
+            const LOCAL_STATUSES = ['Nouvelle', 'Atelier', 'Annuler'];
+            const trackedOrders = sheetOrders.filter(o => 
+                o.tracking && 
+                String(o.tracking).trim().length > 5 &&
+                !LOCAL_STATUSES.includes(o.state)
+            );
             const trackingsToFetch = trackedOrders.map(o => o.tracking);
 
             if (trackingsToFetch.length === 0) {
