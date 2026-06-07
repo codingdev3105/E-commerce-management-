@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { getOrders, getNoestTrackingInfo, updateMessageStatus, updateOrder } from '../../services/api';
-import { Search, RefreshCw, Truck, MapPin, User, X, Phone, Eye, ArrowRightLeft } from 'lucide-react';
+import { Search, RefreshCw, Truck, MapPin, User, X, Phone, Eye, ArrowRightLeft, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { useUI } from '../../context/UIContext';
 import { useAppData } from '../../context/AppDataContext';
 import { getCategoryFromEvent, formatNoestDate, parseNoestDate } from '../common/noestUtils';
@@ -9,10 +9,18 @@ import { getCategoryFromEvent, formatNoestDate, parseNoestDate } from '../common
 function NoestTrackingPage() {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isFetchingBackground, setIsFetchingBackground] = useState(false);
+    const [syncProgress, setSyncProgress] = useState({ current: 0, total: 0 });
     const [filterText, setFilterText] = useState('');
     const [selectedOrder, setSelectedOrder] = useState(null);
     const { toast } = useUI();
     const { wilayas } = useAppData();
+
+    // Batch Sync Modal State
+    const [syncModalOpen, setSyncModalOpen] = useState(false);
+    const [syncQueue, setSyncQueue] = useState([]);
+    const [syncPage, setSyncPage] = useState(0);
+    const [isSyncingAll, setIsSyncingAll] = useState(false);
 
     useEffect(() => {
         fetchNoestData();
@@ -20,6 +28,8 @@ function NoestTrackingPage() {
 
 
     const fetchNoestData = async () => {
+        if (isFetchingBackground) return; // Prevent concurrent background fetches
+        
         setLoading(true);
         try {
             const sheetOrders = await getOrders();
@@ -37,126 +47,253 @@ function NoestTrackingPage() {
                 return;
             }
 
-            const result = await getNoestTrackingInfo(trackingsToFetch);
+            // --- STEP 1: Fast Display (Instant Render) ---
+            const initialOrders = trackedOrders.map(localOrder => ({
+                tracking: localOrder.tracking,
+                reference: localOrder.reference,
+                client: localOrder.client,
+                phone: localOrder.phone,
+                wilaya_id: localOrder.wilaya,
+                wilaya_name: (wilayas || []).find(w => w.code == localOrder.wilaya)?.nom || '',
+                commune: localOrder.commune,
+                adresse: localOrder.address, 
+                montant: localOrder.amount,
+                created_at: localOrder.date || '', 
+                status: localOrder.state || 'En traitement', // Affiche exactement l'état du sheet
+                category: localOrder.state || 'En traitement', // Prevents fake desync
+                status_class: 'badge-secondary',
+                activities: [],
+                deliveryAttempts: [],
+                produit: localOrder.product,
+                remarque: localOrder.remarque || localOrder.note || '',
+                is_stopdesk: localOrder.isStopDesk === 'OUI',
+                isMessageSent: localOrder.isMessageSent === true,
+                rowId: localOrder.rowId,
+                stationExpedition: localOrder.stationExpedition,
+                localOrder: localOrder,
+                isFetchingStatus: true
+            }));
 
-            const noestData = Object.values(result).map(item => {
-                const info = item.OrderInfo || {};
-                const activities = item.activity || [];
-                const deliveryAttempts = item.deliveryAttempts || [];
+            setOrders(initialOrders);
+            setLoading(false); // Main UI Appears!
+            setIsFetchingBackground(true);
+            setSyncProgress({ current: 0, total: trackingsToFetch.length });
 
-                const sortedActivities = activities.map(act => ({
-                    ...act,
-                    parsedDate: parseNoestDate(act.date)
-                })).sort((a, b) => b.parsedDate - a.parsedDate);
+            // --- STEP 2: Background Progressive Fetching ---
+            const chunkSize = 20; // Fetch 20 orders at a time
+            let fetchedCount = 0;
+            
+            for (let i = 0; i < trackingsToFetch.length; i += chunkSize) {
+                const chunk = trackingsToFetch.slice(i, i + chunkSize);
+                try {
+                    const result = await getNoestTrackingInfo(chunk);
+                    
+                    const noestDataList = Object.values(result).map(item => {
+                        const info = item.OrderInfo || {};
+                        const activities = item.activity || [];
+                        const deliveryAttempts = item.deliveryAttempts || [];
 
-                const latest = sortedActivities[0] || {};
-                const wilayaName = (wilayas || []).find(w => w.code == info.wilaya_id)?.nom || '';
-                const isStopDesk = Number(info.stop_desk) === 1;
+                        const sortedActivities = activities.map(act => ({
+                            ...act,
+                            parsedDate: parseNoestDate(act.date)
+                        })).sort((a, b) => b.parsedDate - a.parsedDate);
 
-                const category = getCategoryFromEvent(latest.event_key, latest.event || info.current_status, isStopDesk);
+                        const latest = sortedActivities[0] || {};
+                        const wilayaName = (wilayas || []).find(w => w.code == info.wilaya_id)?.nom || '';
+                        const isStopDesk = Number(info.stop_desk) === 1;
 
-                const localOrder = sheetOrders.find(o =>
-                    String(o.tracking).trim() === String(info.tracking).trim()
-                );
+                        const category = getCategoryFromEvent(latest.event_key, latest.event || info.current_status, isStopDesk);
 
-                if (!localOrder) {
-                    console.warn("Orphaned tracking info:", info.tracking);
+                        const localOrder = sheetOrders.find(o => String(o.tracking).trim() === String(info.tracking).trim());
+                        
+                        return {
+                            tracking: info.tracking,
+                            reference: info.reference,
+                            client: info.client,
+                            phone: info.phone,
+                            wilaya_id: info.wilaya_id,
+                            wilaya_name: wilayaName,
+                            commune: info.commune,
+                            adresse: info.adresse,
+                            montant: info.montant,
+                            created_at: formatNoestDate(parseNoestDate(info.created_at)),
+                            status: latest.event || info.current_status || 'En attente',
+                            category: category,
+                            status_class: latest['badge-class'],
+                            activities: sortedActivities.map(a => ({
+                                ...a,
+                                date: formatNoestDate(a.parsedDate)
+                            })),
+                            deliveryAttempts: deliveryAttempts,
+                            driver_name: info.driver_name,
+                            driver_phone: info.driver_phone,
+                            produit: info.produit,
+                            remarque: localOrder?.remarque || info.remarque || '',
+                            is_stopdesk: isStopDesk,
+                            isMessageSent: localOrder ? (localOrder.isMessageSent === true) : false,
+                            rowId: localOrder?.rowId,
+                            stationExpedition: localOrder?.stationExpedition,
+                            localOrder: localOrder,
+                            isFetchingStatus: false
+                        };
+                    });
+
+                    // Real-time UI update for this chunk
+                    setOrders(prev => {
+                        const nextOrders = [...prev];
+                        noestDataList.forEach(newData => {
+                            const index = nextOrders.findIndex(o => String(o.tracking).trim() === String(newData.tracking).trim());
+                            if (index !== -1) {
+                                nextOrders[index] = newData;
+                            }
+                        });
+                        return nextOrders;
+                    });
+                    
+                    fetchedCount += chunk.length;
+                    setSyncProgress({ current: fetchedCount, total: trackingsToFetch.length });
+                } catch (chunkError) {
+                    console.error("Failed to fetch chunk:", chunkError);
                 }
-
-                const remarque = localOrder?.remarque || info.remarque || '';
-                const isMessageSent = localOrder ? (localOrder.isMessageSent === true) : false;
-                const rowId = localOrder?.rowId;
-
-                return {
-                    tracking: info.tracking,
-                    reference: info.reference,
-                    client: info.client,
-                    phone: info.phone,
-                    wilaya_id: info.wilaya_id,
-                    wilaya_name: wilayaName,
-                    commune: info.commune,
-                    adresse: info.adresse,
-                    montant: info.montant,
-                    created_at: formatNoestDate(parseNoestDate(info.created_at)),
-                    status: latest.event || info.current_status || 'En attente',
-                    category: category,
-                    status_class: latest['badge-class'],
-                    activities: sortedActivities.map(a => ({
-                        ...a,
-                        date: formatNoestDate(a.parsedDate)
-                    })),
-                    deliveryAttempts: deliveryAttempts,
-                    driver_name: info.driver_name,
-                    driver_phone: info.driver_phone,
-                    produit: info.produit,
-                    remarque: remarque,
-                    is_stopdesk: isStopDesk,
-                    isMessageSent: isMessageSent,
-                    rowId: rowId,
-                    stationExpedition: localOrder?.stationExpedition,
-                    localOrder: localOrder // Store full object for sync
-                };
-            });
-
-            setOrders(noestData);
-
+            }
         } catch (error) {
             console.error("Failed to fetch Noest info", error);
             toast.error("Erreur lors de la récupération des données");
         } finally {
             setLoading(false);
+            setIsFetchingBackground(false);
         }
     };
 
-    const handleSync = async () => {
+    const handleSync = () => {
         const updatesToSync = orders.filter(o =>
             o.localOrder && o.category && o.localOrder.state !== o.category
         ).map(o => ({
+            id: o.tracking || o.reference,
             rowId: o.rowId,
+            reference: o.reference,
+            oldState: o.localOrder.state,
+            newState: o.category,
             orderAtIndex: o.localOrder,
-            newState: o.category
+            status: 'pending' // pending, syncing, success, error
         }));
 
         if (updatesToSync.length === 0) {
-
             toast.info("Tout est déjà synchronisé !");
             return;
         }
 
-        const confirmed = window.confirm(`Voulez-vous synchroniser ${updatesToSync.length} commandes avec les statuts Noest ?`);
-        if (!confirmed) return;
+        setSyncQueue(updatesToSync);
+        setSyncPage(0);
+        setSyncModalOpen(true);
+    };
 
-        setLoading(true);
+    const syncSingleItem = async (itemIndex) => {
+        const item = syncQueue[itemIndex];
+        if (!item || item.status === 'success') return true;
+
+        setSyncQueue(prev => {
+            const newQ = [...prev];
+            newQ[itemIndex] = { ...newQ[itemIndex], status: 'syncing' };
+            return newQ;
+        });
+
         try {
-            const updatePromises = updatesToSync.map(update => {
-                const payload = { ...update.orderAtIndex, state: update.newState };
-                return updateOrder(update.rowId, payload);
-            });
-
-            await Promise.all(updatePromises);
-            toast.success(`${updatesToSync.length} commandes synchronisées avec succès !`);
+            const payload = { ...item.orderAtIndex, state: item.newState };
+            await updateOrder(item.rowId, payload);
 
             setOrders(prev => prev.map(o => {
-                const update = updatesToSync.find(u => u.rowId === o.rowId);
-                if (update) {
-                    return { ...o, localOrder: { ...o.localOrder, state: update.newState } };
+                if (o.rowId === item.rowId) {
+                    return { ...o, localOrder: { ...o.localOrder, state: item.newState } };
                 }
                 return o;
             }));
 
-        } catch (syncError) {
-            console.error("Synchronization failed", syncError);
-            toast.error("Erreur lors de la synchronisation des états.");
-        } finally {
-            setLoading(false);
+            setSyncQueue(prev => {
+                const newQ = [...prev];
+                newQ[itemIndex] = { ...newQ[itemIndex], status: 'success' };
+                return newQ;
+            });
+            return true;
+        } catch (e) {
+            setSyncQueue(prev => {
+                const newQ = [...prev];
+                newQ[itemIndex] = { ...newQ[itemIndex], status: 'error' };
+                return newQ;
+            });
+            return false;
         }
     };
 
+    const syncCurrentPage = async () => {
+        setIsSyncingAll(true);
+        const startIndex = syncPage * 10;
+        const endIndex = Math.min(startIndex + 10, syncQueue.length);
+        
+        let allSuccess = true;
+        for (let i = startIndex; i < endIndex; i++) {
+            const success = await syncSingleItem(i);
+            if (!success) allSuccess = false;
+            // Delay to prevent Google Sheets API rate limit
+            await new Promise(resolve => setTimeout(resolve, 400));
+        }
+
+        if (allSuccess) {
+            if (endIndex < syncQueue.length) {
+                toast.success("Page synchronisée, passage à la suivante dans 1.5s...");
+                setTimeout(() => {
+                    setSyncPage(p => p + 1);
+                    setIsSyncingAll(false);
+                }, 1500);
+            } else {
+                toast.success("Toutes les commandes ont été synchronisées avec succès !");
+                setIsSyncingAll(false);
+            }
+        } else {
+            toast.error("Certaines commandes ont échoué sur cette page.");
+            setIsSyncingAll(false);
+        }
+    };
+
+    const syncEverything = async () => {
+        setIsSyncingAll(true);
+        let currentPage = syncPage;
+        let allSuccessGlobal = true;
+        
+        while (currentPage * 10 < syncQueue.length) {
+            const startIndex = currentPage * 10;
+            const endIndex = Math.min(startIndex + 10, syncQueue.length);
+            
+            for (let i = startIndex; i < endIndex; i++) {
+                const success = await syncSingleItem(i);
+                if (!success) allSuccessGlobal = false;
+                await new Promise(resolve => setTimeout(resolve, 400));
+            }
+            
+            if (endIndex < syncQueue.length) {
+                currentPage++;
+                setSyncPage(currentPage);
+                // Pause de 1.5s pour montrer la page suivante
+                await new Promise(resolve => setTimeout(resolve, 1500));
+            } else {
+                break;
+            }
+        }
+        
+        if (allSuccessGlobal) {
+            toast.success("Synchronisation globale terminée avec succès !");
+        } else {
+            toast.error("Synchronisation terminée avec quelques erreurs.");
+        }
+        setIsSyncingAll(false);
+    };
+
     const updatesToSyncCount = useMemo(() => {
+        if (isFetchingBackground) return 0; // Cache le badge pendant le calcul
         return orders.filter(o =>
             o.localOrder && o.category && o.localOrder.state !== o.category
         ).length;
-    }, [orders]);
+    }, [orders, isFetchingBackground]);
 
     const handleMessageSent = async (order) => {
         if (!order.rowId) {
@@ -263,13 +400,13 @@ function NoestTrackingPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <button onClick={fetchNoestData} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-blue-600 transition-colors" title="Actualiser">
-                        <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                    <button onClick={fetchNoestData} disabled={isFetchingBackground || loading} className={`p-1.5 rounded-lg transition-colors ${isFetchingBackground || loading ? 'text-blue-400 opacity-70 cursor-not-allowed' : 'text-slate-400 hover:bg-slate-100 hover:text-blue-600'}`} title="Actualiser">
+                        <RefreshCw className={`w-4 h-4 ${isFetchingBackground || loading ? 'animate-spin' : ''}`} />
                     </button>
-                    <button onClick={handleSync} className="relative p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-green-600 transition-colors" title="Synchroniser">
+                    <button onClick={handleSync} disabled={isFetchingBackground} className="relative p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-green-600 transition-colors disabled:opacity-50" title="Synchroniser">
                         <ArrowRightLeft className="w-4 h-4" />
                         {updatesToSyncCount > 0 && (
-                            <span className="absolute -top-2 -right-0 bg-red-500 text-white text-[9px] font-bold px-1.5 rounded-full min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-white">
+                            <span className="absolute -top-2 -right-0 bg-red-500 text-white text-[9px] font-bold px-1.5 rounded-full min-w-[16px] h-4 flex items-center justify-center shadow-sm border border-white animate-in zoom-in">
                                 {updatesToSyncCount}
                             </span>
                         )}
@@ -286,6 +423,18 @@ function NoestTrackingPage() {
                     </div>
                 </div>
             </div>
+
+            {isFetchingBackground && syncProgress.total > 0 && (
+                <div className="px-4 py-2.5 bg-indigo-50 border-b border-indigo-100">
+                    <div className="flex items-center justify-between text-[10px] font-bold text-indigo-700 mb-1.5 uppercase tracking-wider">
+                        <span className="flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Vérification des statuts Noest...</span>
+                        <span className="bg-indigo-100 px-2 py-0.5 rounded-full">{syncProgress.current} / {syncProgress.total}</span>
+                    </div>
+                    <div className="w-full bg-indigo-100/50 rounded-full h-1.5 overflow-hidden border border-indigo-200/50">
+                        <div className="bg-indigo-500 h-1.5 rounded-full transition-all duration-300" style={{ width: `${(syncProgress.current / syncProgress.total) * 100}%` }}></div>
+                    </div>
+                </div>
+            )}
 
             <div className="border-b border-slate-100 bg-slate-50/50">
                 <div className="flex overflow-x-auto hide-scrollbar px-2 gap-1">
@@ -372,7 +521,156 @@ function NoestTrackingPage() {
                     onMessageSent={handleMessageSent}
                 />
             )}
+            {syncModalOpen && (
+                <SyncBatchModal 
+                    syncQueue={syncQueue}
+                    syncPage={syncPage}
+                    setSyncPage={setSyncPage}
+                    onClose={() => setSyncModalOpen(false)}
+                    onSyncSingle={syncSingleItem}
+                    onSyncAll={syncCurrentPage}
+                    onSyncEverything={syncEverything}
+                    isSyncingAll={isSyncingAll}
+                />
+            )}
         </section >
+    );
+}
+
+function SyncBatchModal({ syncQueue, syncPage, setSyncPage, onClose, onSyncSingle, onSyncAll, onSyncEverything, isSyncingAll }) {
+    const startIndex = syncPage * 10;
+    const endIndex = Math.min(startIndex + 10, syncQueue.length);
+    const currentPageItems = syncQueue.slice(startIndex, endIndex);
+    const totalPages = Math.ceil(syncQueue.length / 10);
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
+                
+                {/* Header */}
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white">
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <ArrowRightLeft className="w-5 h-5 text-blue-600" />
+                            Synchronisation des statuts
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-1">
+                            {syncQueue.length} commande(s) à synchroniser - Page {syncPage + 1} sur {totalPages}
+                        </p>
+                    </div>
+                    <button onClick={onClose} disabled={isSyncingAll} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500 disabled:opacity-50">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                {/* Content Table */}
+                <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider border-b border-slate-100">
+                                    <th className="px-4 py-3 font-bold">Référence</th>
+                                    <th className="px-4 py-3 font-bold">Ancien État</th>
+                                    <th className="px-4 py-3 font-bold">Nouvel État</th>
+                                    <th className="px-4 py-3 font-bold text-center">Statut</th>
+                                    <th className="px-4 py-3 font-bold text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {currentPageItems.map((item, idx) => {
+                                    const globalIndex = startIndex + idx;
+                                    return (
+                                        <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="px-4 py-3">
+                                                <div className="font-bold text-slate-800 text-xs">{item.reference}</div>
+                                                <div className="text-[10px] text-slate-400 font-mono">{item.id}</div>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className="text-xs font-medium text-slate-500 line-through decoration-slate-300">
+                                                    {item.oldState || '-'}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className="text-xs font-bold text-blue-600">
+                                                    {item.newState}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
+                                                <div className="flex justify-center">
+                                                    {item.status === 'pending' && <span className="w-2 h-2 rounded-full bg-slate-300"></span>}
+                                                    {item.status === 'syncing' && <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />}
+                                                    {item.status === 'success' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                                                    {item.status === 'error' && <AlertCircle className="w-4 h-4 text-red-500" />}
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3 text-right">
+                                                <button 
+                                                    onClick={() => onSyncSingle(globalIndex)}
+                                                    disabled={item.status === 'success' || item.status === 'syncing' || isSyncingAll}
+                                                    className={`px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm transition-all
+                                                        ${item.status === 'success' 
+                                                            ? 'bg-green-50 text-green-600 border border-green-200 cursor-default'
+                                                            : 'bg-white text-slate-600 border border-slate-200 hover:border-blue-400 hover:text-blue-600 active:scale-95'
+                                                        } disabled:opacity-50
+                                                    `}
+                                                >
+                                                    {item.status === 'success' ? 'Synchronisé' : 'Synchroniser'}
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* Footer Controls */}
+                <div className="px-6 py-4 border-t border-slate-100 bg-white flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={() => setSyncPage(p => Math.max(0, p - 1))} 
+                            disabled={syncPage === 0 || isSyncingAll}
+                            className="px-3 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded transition-colors disabled:opacity-30"
+                        >
+                            Précédent
+                        </button>
+                        <span className="text-xs font-medium text-slate-400">
+                            Page {syncPage + 1} / {totalPages}
+                        </span>
+                        <button 
+                            onClick={() => setSyncPage(p => Math.min(totalPages - 1, p + 1))} 
+                            disabled={syncPage === totalPages - 1 || isSyncingAll}
+                            className="px-3 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded transition-colors disabled:opacity-30"
+                        >
+                            Suivant
+                        </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={onSyncAll}
+                            disabled={isSyncingAll}
+                            className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-blue-300 rounded-xl text-sm font-bold shadow-sm transition-all active:scale-95 flex items-center gap-2 disabled:opacity-50"
+                            title={`Synchroniser uniquement la page ${syncPage + 1}`}
+                        >
+                            <CheckCircle2 className="w-4 h-4 text-blue-500" /> Page courante
+                        </button>
+                        
+                        <button 
+                            onClick={onSyncEverything}
+                            disabled={isSyncingAll}
+                            className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-500/30 transition-all active:scale-95 flex items-center gap-2 disabled:opacity-70"
+                        >
+                            {isSyncingAll ? (
+                                <><Loader2 className="w-4 h-4 animate-spin" /> Synchronisation...</>
+                            ) : (
+                                <><RefreshCw className="w-4 h-4" /> Synchroniser le tout</>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     );
 }
 
@@ -424,9 +722,15 @@ function OrderTableRow({ order, index, onClick }) {
                 <div className="text-xs font-bold text-slate-800">{order.montant} DA</div>
             </td>
             <td className="px-4 py-2 text-center">
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border shadow-sm whitespace-nowrap ${statusStyle}`}>
-                    {order.status}
-                </span>
+                {order.isFetchingStatus ? (
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border border-slate-200 bg-slate-50 text-slate-400 whitespace-nowrap shadow-sm">
+                        <Loader2 className="w-3 h-3 animate-spin" /> {order.status}
+                    </span>
+                ) : (
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border shadow-sm whitespace-nowrap ${statusStyle}`}>
+                        {order.status}
+                    </span>
+                )}
             </td>
             <td className="px-4 py-2 text-center">
                 <div className={`w-3 h-3 rounded-full mx-auto ${order.isMessageSent ? 'bg-green-500 ring-4 ring-green-100' : 'bg-blue-200'}`} title={order.isMessageSent ? "Message Envoyé" : "Message Non Envoyé"}></div>

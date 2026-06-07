@@ -67,19 +67,18 @@ export const AppDataProvider = ({ children }) => {
                 getNoestFees()
             ]);
 
-            // Normalize Desks if it's an object (Noest returns object { "1A": {...}, "1B": {...} })
-            let desksArray = [];
-            if (desksData && typeof desksData === 'object' && !Array.isArray(desksData)) {
-                desksArray = Object.values(desksData);
-            } else if (Array.isArray(desksData)) {
-                desksArray = desksData;
-            }
+            const toArray = (data) => {
+                if (!data) return [];
+                if (Array.isArray(data)) return data;
+                if (typeof data === 'object') return Object.values(data);
+                return [];
+            };
 
             setData(prev => ({
                 ...prev,
-                wilayas: wilayasData || [],
-                communes: communesData || [],
-                desks: desksArray,
+                wilayas: toArray(wilayasData),
+                communes: toArray(communesData),
+                desks: toArray(desksData),
                 fees: feesData || {}
             }));
         } catch (error) {

@@ -12,6 +12,8 @@
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.17",
     "axios": "^1.13.2",
+    "baseline-browser-mapping": "^2.10.34",
+    "caniuse-lite": "^1.0.30001797",
     "jspdf": "^3.0.4",
     "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.556.0",
